@@ -3,145 +3,136 @@ module MultiLine
 using StaticArrays
 using Interpolations
 
-export Mline, interpolate
+export Line, interp, append!, prepend!, insert!, delete!
 
-"""
-    multiple interpolations object
+import Base.size, 
+       Base.getindex, 
+       Base.setindex!, 
+       Base.eltype
 
-Stores a one-dimensional function support ``x`` as well as corresponding
-function values ``y``, where ``y`` can have more than one dimensions.
 
-## Fields
-
-* `x`: support of function on 1-dimensional grid
-* `y`: function values, `m`-dimensional
-* `m`: number of dimensions of `y`
-* `n`: number of points in `x` and `y` grids
-* `mn`: total number of points, i.e. `n` times `m`
-
-"""
-mutable struct Mline 
-    x :: Vector{Float64}
-    y :: Array{Vector{Float64},1}
-    m :: Int
-    n :: Int
-    nm ::Int
-    function Mline(x::Vector{Float64},y::Array{Vector{Float64},1})
-        this = new()
-        this.m = length(y)
-        this.n = length(x)
-        @assert all( [this.n == length(i) for i in y] )
+# started with this, because ranges are super efficient with interpolations, but too inflexible for this purpose.
+# mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
+#     x::Union{Vector{T},StepRangeLen{T}}
+#     y::Vector{T}
+#     n::Int
+#     function Line(x::Union{Vector{T},StepRangeLen{T}},y::Vector{T}) where {T<:Number}
+#         this = new{T}()
+#         this.x = x
+#         this.n = length(x)
+#         this.y = y
+#         @assert length(y)==this.n
+#         return this
+#     end
+# end
+mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
+    x::Vector{T}
+    y::Vector{T}
+    n::Int
+    function Line(x::Vector{T},y::Vector{T}) where {T<:Number}
+        this = new{T}()
         this.x = x
+        this.n = length(x)
         this.y = y
-        this.nm = this.n*this.m
+        @assert length(y)==this.n
         return this
     end
 end
-function reconfigure!(m::Mline)
-    # after having updated some objects, need to recompute n and am
+function reconfigure!(m::Line)
+    # after having updated some objects, need to recompute n
     m.n = length(m.x)
-    m.m = length(m.y)
-    m.nm = m.n*m.m
+    @assert m.n = length(m.y)
 end
 
-function copy(m::Mline)
-    mm = Mline(deepcopy(m.x),deepcopy(m.y))
-    return mm
+eltype(l::Line) = eltype(l.x) 
+size(l::Line) = (l.n,)
+function getindex(l::Line,i::Int)
+    (l.x[i],l.y[i])
+end
+function getindex(l::Line,i::UnitRange{Int})
+    Line(l.x[i],l.y[i])
+end
+function setindex!(l::Line{T},x::T,y::T,i::Int) where {T<:Number}
+    l.x[i] = x
+    l.y[i] = y
+end
+function setindex!(l::Line{T},x::Vector{T},y::Vector{T},i::UnitRange{Int}) where {T<:Number}
+    l.x[i] = x
+    l.y[i] = y
 end
 
-# methods that change an Mline object
+# interpolating a line
+
+function interp(l::Line{T},ix::T) where {T<:Number}
+    itp = Interpolations.interpolate((l.x,),l.y,Gridded(Linear()))
+    return itp[ix]
+end 
+# function interp(x::StepRangeLen{T},y::Vector{T},ix::T) where {T<:Number}
+
+#     itp = Interpolations.interpolate(y,Bspline(Linear()))
+#     sitp = scale(itp,x)
+#     return sitp[ix]
+# end
+
+# appending, prepending , deleting and splitting at
+
+"prepend points to an Mline"
+function prepend!(m::Line,x,y)
+    prepend!(m.x,x)
+    prepend!(m.y,y)
+    reconfigure!(m)
+end
 
 "delete an index"
-function delete!(m::Mline,idx::Int)
+function delete!(m::Line,idx::Int)
     deleteat!(m.x,idx)
-    for i in m.y
-        deleteat!(i,idx)
-    end
+    deleteat!(m.y,idx)
     reconfigure!(m)
 end
 
 "append points to an Mline"
-function append!(m::Mline,x,y::Vector)
+function append!(m::Line,x,y)
     append!(m.x,x)
-    for i in eachindex(m.y)
-        append!(m.y[i],y[i])
-    end
-    reconfigure!(m)
-end
-
-"prepend points to an Mline"
-function prepend!(m::Mline,x,y::Vector)
-    prepend!(m.x,x)
-    for i in eachindex(m.y)
-        prepend!(m.y[i],y[i])
-    end
+    append!(m.y,y)
     reconfigure!(m)
 end
 
 "insert a single value at an interior index"
-function insert!(m::Mline,vx::Float64,vy::Vector{Float64},idx::Int ) 
-
+function insert!(m::Line,vx,vy,idx::Int ) 
     insert!(m.x,idx,vx)
-    for i in eachindex(m.y)
-        insert!(m.y[i],idx,vy[i])
-    end
+    insert!(m.y,idx,vy)
     reconfigure!(m)
 end
 
-"insert multiple values at an index"
-function insert!(m::Mline,vx::Vector{Float64},vy::Vector{Vector{Float64}},idx::Int=1 ) 
-    # this needs to create new vectors
-    m.x = vcat()
-    for i in eachindex(m.y)
-        insert!(m.y[i],idx,vy[i])
-    end
-    reconfigure!(m)
-end
-
-"sort an `Mline` along x-grid"
-function sort!(m::Mline)
-    ix = sortperm(m.x)
-    m.x = m.x[ix]
-    for i in eachindex(m.y)
-        m.y[i] = m.y[i][ix]
-    end
-end
-
 """
-    splitat(m::Mline,j::Int,repeat_boundary::Bool=true)
+    splitat(m::Line,j::Int,repeat_boundary::Bool=true)
 
-Splits an `Mline` object after given index and returns 2 new `Mline`s as a tuple. If `repeat_boundary` is true, then the separating index is the first point of the second new `Mline`.
+Splits a `Line` object after given index and returns 2 new `Line`s as a tuple. If `repeat_boundary` is true, then the separating index is the first point of the second new `Line`.
 """
-function splitat(m::Mline,j::Int,repeat_boundary::Bool=true)
-    m1 = Mline(m.x[1:j],m.y[1:j])
+function splitat(m::Line,j::Int,repeat_boundary::Bool=true)
+    m1 = Line(m.x[1:j],m.y[1:j])
     if repeat_boundary
-        m2 = Mline(m.x[j:end],m.y[j:end])
+        m2 = Line(m.x[j:end],m.y[j:end])
     else
-        m2 = Mline(m.x[j+1:end],m.y[j+1:end])
+        m2 = Line(m.x[j+1:end],m.y[j+1:end])
     end
     return (m1,m2)
 end
 
-# methods that produce a value from an Mline object.
-
-"interpolate at new index ix"
-function interpolate(m::Mline,ix::Float64)
-    if m.m > 1
-        # cast as a m-dimensional static array
-        y = reinterpret(SVector{m.m,Float64},vcat(m.y'...),(m.n,))
-        itp = Interpolations.interpolate(y,BSpline(Linear()), OnGrid())
-    else
-        itp = Interpolations.interpolate(m.y,BSpline(Linear()), OnGrid())
-    end
-    return itp[ix]
+"sort a `Line` along x-grid"
+function sort!(m::Line)
+    ix = sortperm(m.x)
+    m.x = m.x[ix]
+    m.y = m.y[ix]
 end
+
 
 """
     secondary_envenlope(m::Mline)
 
 Prunes the `Mline` object from wrong EGM solution points. Wrong solutions appear in kinked regions.
 """
-function secondary_envelope(m::Mline)
+function secondary_envelope(m::Line)
     o = copy(m)  # make a copy in order not to destroy the original object m. check if it's necessary to keep that object, otherwise: destroy it and don't copy anything!
 
     # 1) find all jump-backs in x-grid
@@ -153,7 +144,7 @@ function secondary_envelope(m::Mline)
     else
     # 3) else, identify subsets
         i = 1
-        sections = Mline[]  # an array of Mlines
+        sections = Line[]  # an array of Mlines
         while true
             j = findfirst(ii .!= ii[1])  # identifies all indices within kinked region from left to right until the first kink
 
@@ -186,14 +177,15 @@ function secondary_envelope(m::Mline)
     end
 end
 
+function upper_env(m::Line)
+    # 5) compute upper envelope of all sections
+        # - get all x's from all s and sort into a vector xx
+        # - interpolate(extrapolate) all s on xx
+        # - disregard points where some lines are extrapolated
 
-function test()
-    x = collect(0:0.1:1)
-    y = Vector{Float64}[]
-    push!(y,rand(11),rand(11),rand(11))
-    m = Mline(x,y)
-    interpolate(m,3.1234)
+
 end
+
 
 
 end # module
