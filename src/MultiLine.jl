@@ -1,7 +1,9 @@
 
 module MultiLine
+
 using StaticArrays
 using Interpolations
+using Roots
 
 export Line, interp, splitat,upper_env
 
@@ -287,9 +289,9 @@ function upper_env(L::Vector{Line{T}}) where T<:Number
             v_to   = yy[subs[js+1]...]
 
             # compute location in grid and value at intersection
-            f_closure(x) = interpolate(L[to],x) - interpolate(L[from],x)
+            f_closure(x) = interp(L[to],[x]) - interp(L[from],[x])
             x_x = fzero(f_closure, x_from, x_to)
-            v_x = interpolate(L[to],x_x)
+            v_x = interp(L[to],[x_x])
 
             # record intersection
             push!(intersections,Point(x_x,v_x))
