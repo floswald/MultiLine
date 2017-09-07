@@ -3,12 +3,17 @@ module MultiLine
 using StaticArrays
 using Interpolations
 
-export Line, interp, append!, prepend!, insert!, delete!
+export Line, interp, splitat,upper_env
 
 import Base.size, 
        Base.getindex, 
        Base.setindex!, 
-       Base.eltype
+       Base.eltype,
+       Base.prepend!,
+       Base.append!,
+       Base.insert!,
+       Base.delete!,
+       Base.sort!
 
 
 # started with this, because ranges are super efficient with interpolations, but too inflexible for this purpose.
@@ -25,23 +30,38 @@ import Base.size,
 #         return this
 #     end
 # end
+
+struct Point{T}
+    x::T
+    y::T
+end
+
 mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
+    # pts::Vector{Point{T}}
     x::Vector{T}
     y::Vector{T}
     n::Int
+    ex::Tuple
     function Line(x::Vector{T},y::Vector{T}) where {T<:Number}
         this = new{T}()
-        this.x = x
+        this.x = copy(x)
         this.n = length(x)
-        this.y = y
+        this.y = copy(y)
+        this.ex = length(x) >0 ? extrema(x) : (0,0)
         @assert length(y)==this.n
         return this
     end
+
+
+end
+function Line() 
+    Line(Number[],Number[])
 end
 function reconfigure!(m::Line)
     # after having updated some objects, need to recompute n
     m.n = length(m.x)
-    @assert m.n = length(m.y)
+    m.ex = extrema(m.x)
+    @assert m.n == length(m.y)
 end
 
 eltype(l::Line) = eltype(l.x) 
@@ -63,10 +83,36 @@ end
 
 # interpolating a line
 
-function interp(l::Line{T},ix::T) where {T<:Number}
-    itp = Interpolations.interpolate((l.x,),l.y,Gridded(Linear()))
+
+function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
+    # whenever 
+    xex = extrema(ix)
+    if xex[1] < l.ex[1] || xex[2] > l.ex[2]
+        if extrap 
+            itp = extrapolate(interpolate((l.x,),l.y,Gridded(Linear())),Linear())
+        else
+            itp = extrapolate(interpolate((l.x,),l.y,Gridded(Linear())),-Inf)
+        end
+    else
+        itp = interpolate((l.x,),l.y,Gridded(Linear()))
+    end
     return itp[ix]
 end 
+
+"Interpolate a Vector of `Line`s on the same grid. Return a matrix where each row is the interpolation of another `Line`"
+function interp(L::Vector{Line{T}},ix::Vector{T},extrap::Bool=true) where {T<:Number}
+
+    # yy = reinterpret(SVector{length(L),T},vcat([l.y for l in L]'...),(L[1].n,))
+    # itp = interpolate((xx,),yy,Gridded(Linear()))
+    # y = itp[ix]
+    # y = convert(Matrix{T},y)
+    y = zeros(T,length(L),length(ix))
+    for i in eachindex(L)
+        y[i,:] = interp(L[i],ix,extrap)
+    end
+    return y
+end 
+
 # function interp(x::StepRangeLen{T},y::Vector{T},ix::T) where {T<:Number}
 
 #     itp = Interpolations.interpolate(y,Bspline(Linear()))
@@ -132,15 +178,15 @@ end
 
 Prunes the `Mline` object from wrong EGM solution points. Wrong solutions appear in kinked regions.
 """
-function secondary_envelope(m::Line)
-    o = copy(m)  # make a copy in order not to destroy the original object m. check if it's necessary to keep that object, otherwise: destroy it and don't copy anything!
+function secondary_envelope(o::Line{T}) where T<:Number
 
     # 1) find all jump-backs in x-grid
     ii = o.x[2:end].>o.x[1:end-1]  
 
     # 2) if no backjumps at all, exit
     if all(ii)  
-        return m
+        # return same object
+        return Dict(:pruned=>o,:idx_removed=>0,:intersections=>0)
     else
     # 3) else, identify subsets
         i = 1
@@ -154,9 +200,10 @@ function secondary_envelope(m::Line)
                     # add remaining Mline
                     push!(sections,o)
                 end
+                # then break
                 break
             end
-            newm,o = splitat(o,j)  # split old Mline at j 
+            newm,o = splitat(o,j)  # split old Line at j 
             push!(sections,newm)
             ii = ii[j:end] # chop off from jump index
             i += 1
@@ -171,19 +218,95 @@ function secondary_envelope(m::Line)
             # - get all x's from all s and sort into a vector xx
             # - interpolate(extrapolate) all s on xx
             # - disregard points where some lines are extrapolated
-
-
-        # 6) collect indices of points removed from o (i.e. points in m but not in o)
+        u_env = upper_env(s)
+        return Dict(:pruned=>u_env[:envelope],:idx_removed=>diff(o,u_env[:envelope]),:intersections=>u_env[:intersections])
     end
 end
 
-function upper_env(m::Line)
-    # 5) compute upper envelope of all sections
+function upper_env(L::Vector{Line{T}}) where T<:Number
+    # 5) compute upper envelope of all lines
         # - get all x's from all s and sort into a vector xx
         # - interpolate(extrapolate) all s on xx
-        # - disregard points where some lines are extrapolated
+        # - how to deal with points at which some Line is infeasible?
+
+    if length(L)==1
+        warn("an upper envelope requires by definition at least 2 lines.")
+        return 0
+    end
+
+    # - get all x's from all Lines and sort into a vector xx
+    xx = sort(unique(vcat([l.x for l in L]...)))
+    n = length(xx)
+
+    # - interpolate(extrapolate) all Ls on xx
+    # this returns a matrix (length(L),n)
+    # i.e. each row is the interpolation 
+    yy = interp(L,xx)
+
+    # find the top line at each point 
+    # i.e. find the 
+    val,lin_ind = findmax(yy,1)  # linear index!
+    subs = map(x->ind2sub((length(L),L[1].n),x),lin_ind)  # get subsript indices of colwise maxima
+    r_idx = [i[1] for i in subs] # row indices only
+    # switch in top line after index s (indexing global support xx)
+    s = find(r_idx[2:end].!=r_idx[1:end-1])
 
 
+    # s tells us after which position in xx we have a change in top line
+
+    if length(s)==0
+        # there is one complete upper envelope already
+        # return
+        return Dict(:envelope => yy[r_idx[1],:],:intersections=>0)
+    else
+        # sort out which line is top at which index of xx and compute intersection points in between switches
+        # s = 1: there is a switch in top line after the first index
+        # s = i: there is a switch in top line after the i-th index
+
+        # return Line 
+        # The envelope starts with the first line that is on top
+        # that line is on top until index s[1] in xx, after which the 
+        # top line changes.
+        env = Line(xx[1:s[1]],yy[r_idx[s[1]],1:s[1]] )
+
+        for id_s in eachindex(s)
+
+            js = s[id_s]  # value of index: position in xx
+
+            # switching from Line to Line
+            from = r_idx[js]
+            to   = r_idx[js+1]
+
+            # xx coordinates where switching occurs
+            # remember xx is a vector as long as size(yy,2)
+            x_from = xx[subs[js][2]]  # only pick col coordinate
+            x_to   = xx[subs[js+1][2]]  # only pick col coordinate
+
+            # end and start values of both lines
+            v_from = yy[subs[js]...]
+            v_to   = yy[subs[js+1]...]
+
+            # compute location in grid and value at intersection
+            f_closure(x) = interpolate(L[to],x) - interpolate(L[from],x)
+            x_x = fzero(f_closure, x_from, x_to)
+            v_x = interpolate(L[to],x_x)
+
+            # record intersection
+            push!(intersections,Point(x_x,v_x))
+
+            # add intersection to envelope
+            append!(env,x_x,v_x)
+
+            # add next line segment to envelope
+            # index range s[id_s]+1:s[id_s+1] is
+            #     from current switch (next index after): s[id_s]+1
+            #     to last index before next switch: s[id_s+1]
+            last_ind = id_s==length(s) ? n : s[id_s+1]
+            append!(env,xx[js+1:last_ind],yy[to,js+1:last_ind])
+        end
+
+        return Dict(:envelope => env,:intersections=>intersections)
+    end
 end
 
 

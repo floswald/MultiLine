@@ -19,8 +19,8 @@ using TestSetExtensions
             x = collect(0:0.1:1)
             y = log.(1.+x)
             m = Line(x,y)
-            i = interp(m,0.0)
-            @test i == 0.0
+            i = interp(m,[0.0])
+            @test i[1] == 0.0
         end
     end
 
@@ -46,7 +46,92 @@ using TestSetExtensions
     end
 
     @testset "Modifying methods" begin
+
+        @testset "prepend" begin
+            x = collect(0:0.1:1)
+            y = log.(1.+x)
+            L = Line(x,y)
+            prepend!(L,18.0,-1.1)
+            @test size(L)==(12,)
+            @test L[1] == (18.0,-1.1)
+            @test L[2] == (0.0,0.0)
+        end
         
+        @testset "append" begin
+            x = collect(0:0.1:1)
+            y = log.(1.+x)
+            L = Line(x,y)
+            append!(L,18.0,-1.1)
+            @test size(L)==(12,)
+            @test L[end] == (18.0,-1.1)
+            @test L[1] == (0.0,0.0)
+        end
+
+        @testset "delete!" begin
+            x = collect(0:0.1:1)
+            y = rand(11)
+            L = Line(x,y)
+            delete!(L,9)
+            @test size(L)==(10,)
+            @test L[9] == (x[10],y[10])
+        end
+        @testset "insert!" begin
+            x = collect(0:0.1:1)
+            y = log.(1.+x)
+            L = Line(x,y)
+            insert!(L,1.1,3.3,9)
+            @test size(L)==(12,)
+            @test L[9] == (1.1,3.3)
+            @test L[10] == (x[9],y[9])
+            @test L[8] == (x[8],y[8])
+        end
+        @testset "splitat" begin
+            x = collect(0:0.1:1)
+            y = log.(1.+x)
+            L = Line(x,y)
+            n,o=splitat(L,1)
+            @test size(n)==(1,)
+            @test size(o)==(11,)
+
+            n,o=splitat(L,2)
+            @test size(n)==(2,)
+            @test size(o)==(10,)
+            @test n[2] == L[2]
+            @test o[2] == L[3]
+            @test o[1] == L[2]
+            @test o[end] == L[end]
+
+            n,o=splitat(L,2,false)
+            @test size(n)==(2,)
+            @test size(o)==(9,)
+            @test n[2] == L[2]
+            @test o[2] == L[4]
+            @test o[1] == L[3]
+        end
+        @testset "sort!" begin
+            x = collect(0:0.1:1)
+            y = rand(11)
+            L = Line(x,y)
+            insert!(L,2.0,2.0,2)
+            @test !(issorted(L.x))
+            sort!(L)
+            @test issorted(L.x)
+        end
+    end
+
+    @testset "Envelopes" begin 
+        @testset "upper_env test 1" begin
+            n = 15
+            x1 = collect(linspace(0,10,n))
+            x2 = collect(linspace(-1,9,n))
+            L1 = Line(x1,x1)
+            L2 = Line(x2,ones(n)*5)
+            upper_env([L1,L2])
+
+
+            
+        end
+
     end
 
 end
