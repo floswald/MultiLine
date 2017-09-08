@@ -4,8 +4,9 @@ module MultiLine
 using StaticArrays
 using Interpolations
 using Roots
+using MiniLogging
 
-export Line, interp, splitat,upper_env
+export Line, Point, interp, splitat,upper_env
 
 import Base.size, 
        Base.getindex, 
@@ -16,6 +17,11 @@ import Base.size,
        Base.insert!,
        Base.delete!,
        Base.sort!
+
+# setup MiniLogging
+logger = get_logger()
+# basic_config(MiniLogging.DEBUG; date_format="%Y-%m-%d %H:%M:%S")
+basic_config(MiniLogging.INFO; date_format="%Y-%m-%d %H:%M:%S")
 
 
 # started with this, because ranges are super efficient with interpolations, but too inflexible for this purpose.
@@ -53,8 +59,6 @@ mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
         @assert length(y)==this.n
         return this
     end
-
-
 end
 function Line() 
     Line(Number[],Number[])
@@ -84,7 +88,6 @@ function setindex!(l::Line{T},x::Vector{T},y::Vector{T},i::UnitRange{Int}) where
 end
 
 # interpolating a line
-
 
 function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
     # whenever 
@@ -245,16 +248,19 @@ function upper_env(L::Vector{Line{T}}) where T<:Number
     # i.e. each row is the interpolation 
     yy = interp(L,xx)
 
-    # find the top line at each point 
-    # i.e. find the 
-    val,lin_ind = findmax(yy,1)  # linear index!
-    subs = map(x->ind2sub((length(L),L[1].n),x),lin_ind)  # get subsript indices of colwise maxima
-    r_idx = [i[1] for i in subs] # row indices only
+    # find the top line at each point in xx
+    val,lin_ind = findmax(yy,1)  # colwise max
+    subs = map(x->ind2sub(yy,x),lin_ind)  # get subsript indices of colwise maxima
+    r_idx = [i[1] for i in subs] # get row indices only: the row index tells us which Line was optimal at that point.
+
+    # Identify changes in optimal Line
     # switch in top line after index s (indexing global support xx)
+    # s tells us after which position in xx we have a change in optimal line
     s = find(r_idx[2:end].!=r_idx[1:end-1])
 
 
-    # s tells us after which position in xx we have a change in top line
+    # Assemble Upper Envelope from Line segments
+    # ==========================================
 
     if length(s)==0
         # there is one complete upper envelope already
@@ -270,44 +276,100 @@ function upper_env(L::Vector{Line{T}}) where T<:Number
         # that line is on top until index s[1] in xx, after which the 
         # top line changes.
         env = Line(xx[1:s[1]],yy[r_idx[s[1]],1:s[1]] )
+        isec = Point{T}[]
 
         for id_s in eachindex(s)
 
             js = s[id_s]  # value of index: position in xx
+            # @debug(logger,"js = $js")
 
             # switching from Line to Line
             from = r_idx[js]
             to   = r_idx[js+1]
+            @debug(logger,"from = $(r_idx[js])")
+            @debug(logger,"to   = $(r_idx[js+1])")
 
-            # xx coordinates where switching occurs
+            # xx coordinates between which the switching occurs
             # remember xx is a vector as long as size(yy,2)
             x_from = xx[subs[js][2]]  # only pick col coordinate
             x_to   = xx[subs[js+1][2]]  # only pick col coordinate
+            @debug(logger,"x_from = $(xx[subs[js][2]])")  # only pick col coordinate
+            @debug(logger,"x_to   = $(xx[subs[js+1][2]])")  # only pick col coordinate
 
             # end and start values of both lines
             v_from = yy[subs[js]...]
             v_to   = yy[subs[js+1]...]
+            @debug(logger,"v_from = $(yy[subs[js]...])")
+            @debug(logger,"v_to   = $(yy[subs[js+1]...])")
 
-            # compute location in grid and value at intersection
-            f_closure(x) = interp(L[to],[x]) - interp(L[from],[x])
-            x_x = fzero(f_closure, x_from, x_to)
-            v_x = interp(L[to],[x_x])
+            # if both L[from] and L[to] have an xgrid such that
+            # xx=[...,x_from,x_to,...] both x_from and x_to are members,
+            # then there is no intersection to compute: the switch happens on a 
+            # grid point, hence the intersection is x_to. 
+            # also, we don't have to add the intersection to the envelope
+            # (because x_to would show up twice in this case: last point of L[from] and
+            # intersection).
+            from_on_xx = to_on_xx = false
 
-            # record intersection
-            push!(intersections,Point(x_x,v_x))
+            # check if L[from].x contains adjacent x_from and x_to
+                # @debug(logger,in(x_from,L[from].x))
+                # @debug(logger,L[from].x[findfirst(L[from].x,x_from)+1])
+                # @debug(logger,x_to)
+            if in(x_from,L[from].x) && L[from].x[findfirst(L[from].x,x_from)+1]==x_to
+                from_on_xx = true
+            end
+            if in(x_from,L[to].x) && L[to].x[findfirst(L[to].x,x_from)+1]==x_to
+                to_on_xx = true
+            end
+            @debug(logger,"from_on_xx = $from_on_xx")
+            @debug(logger,"to_on_xx = $to_on_xx")
 
-            # add intersection to envelope
-            append!(env,x_x,v_x)
+            # if both lines' support is contained in global support xx
+            if from_on_xx && to_on_xx
+                # record intersection
+                push!(isec,Point(x_to,v_to))
 
-            # add next line segment to envelope
-            # index range s[id_s]+1:s[id_s+1] is
-            #     from current switch (next index after): s[id_s]+1
-            #     to last index before next switch: s[id_s+1]
-            last_ind = id_s==length(s) ? n : s[id_s+1]
-            append!(env,xx[js+1:last_ind],yy[to,js+1:last_ind])
+                # don't add intersection to envelope!
+
+                # add next line segment to envelope
+                # index range s[id_s]+1:s[id_s+1] is
+                #     from current switch (next index after): s[id_s]+1
+                #     to last index before next switch: s[id_s+1]
+                last_ind = id_s==length(s) ? n : s[id_s+1]
+                append!(env,xx[js+1:last_ind],yy[to,js+1:last_ind])
+            else
+                # compute location in grid and value at intersection
+                # @debug(logger,interp(L[to],[x_to-x_from]))
+                # @debug(logger,interp(L[from],[x_to-x_from]))
+                # @debug(logger,x_from)
+                # @debug(logger,x_to)
+                f_closure(x) = interp(L[to],[x])[1] - interp(L[from],[x])[1]
+                x_x = fzero(f_closure, x_from, x_to)
+                v_x = interp(L[to],[x_x])[1]
+
+                # record intersection
+                push!(isec,Point(x_x,v_x))
+                @debug(logger,"isec = $isec")
+
+                # if intersection is not a grid point already,
+                # add intersection to envelope
+                # @debug(logger,"in(x_x,xx) = $(in(x_x,xx))")
+                # @debug(logger,"maxdiff(x_x,xx) = $(minimum(abs,(x_x-xx)))")
+                # @debug(logger,"maxdiff(v_x,xx) = $(minimum(abs,(v_x-yy)))")
+                if !(minimum(abs.(x_x-xx)) < sqrt(eps()) && minimum(abs.(v_x-yy)) < sqrt(eps())  )
+                    append!(env,x_x,v_x)
+                end
+
+                # add next line segment to envelope
+                # index range s[id_s]+1:s[id_s+1] is
+                #     from current switch (next index after): s[id_s]+1
+                #     to last index before next switch: s[id_s+1]
+                last_ind = id_s==length(s) ? n : s[id_s+1]
+                append!(env,xx[js+1:last_ind],yy[to,js+1:last_ind])
+            end
+
         end
-
-        return Dict(:envelope => env,:intersections=>intersections)
+        return Dict(:envelope => env,:intersections=>isec)
     end
 end
 

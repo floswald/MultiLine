@@ -126,10 +126,45 @@ using TestSetExtensions
             x2 = collect(linspace(-1,9,n))
             L1 = Line(x1,x1)
             L2 = Line(x2,ones(n)*5)
-            upper_env([L1,L2])
-
-
-            
+            d = upper_env([L1,L2])
+            @test issorted(d[:envelope].x)
+            @test d[:envelope].x == sort(unique(vcat(x1,x2)))
+            @test d[:intersections][1].x ≈ 5.0
+            @test d[:intersections][1].y ≈ 5.0
+        end
+        @testset "upper_env test 2" begin
+            n = 15
+            x1 = collect(linspace(0,10,n))
+            L1 = Line(x1,x1)
+            L2 = Line(x1,ones(n)*5)
+            d = upper_env([L1,L2])
+            @test d[:envelope].x == x1
+            @test issorted(d[:envelope].x)
+            @test d[:intersections][1].x ≈ 5.0
+            @test d[:intersections][1].y ≈ 5.0
+        end
+        @testset "upper_env test 3" begin
+            n = 15
+            x1 = collect(linspace(0,10,n))
+            L1 = Line(x1,x1)
+            L2 = Line(x1,5.0+0.3*x1)
+            d = upper_env([L1,L2])
+            @test d[:envelope].x == x1
+            @test issorted(d[:envelope].x)
+            @test d[:intersections][1].x ≈ 5.0/0.7
+            @test d[:intersections][1].y ≈ 5.0/0.7
+        end
+        @testset "upper_env test 4" begin
+            n = 15
+            x1 = collect(linspace(0,10,n))
+            x2 = collect(linspace(-1,9,n))
+            L1 = Line(x1,x1)
+            L2 = Line(x2,5.0+0.3*x2)
+            d = upper_env([L1,L2])
+            @test issorted(d[:envelope].x)
+            @test d[:envelope].x == sort(unique(vcat(x1,x2)))
+            @test d[:intersections][1].x ≈ 5.0/0.7
+            @test d[:intersections][1].y ≈ 5.0/0.7
         end
 
     end
