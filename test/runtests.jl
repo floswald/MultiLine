@@ -119,7 +119,7 @@ using TestSetExtensions
         end
     end
 
-    @testset "Envelopes" begin 
+    @testset "Testing Envelopes over 2 lines" begin 
         @testset "upper_env test 1" begin
             n = 15
             x1 = collect(linspace(0,10,n))
@@ -165,6 +165,37 @@ using TestSetExtensions
             @test d[:envelope].x == sort(unique(vcat(x1,x2)))
             @test d[:intersections][1].x ≈ 5.0/0.7
             @test d[:intersections][1].y ≈ 5.0/0.7
+        end
+        @testset "upper_env test: decreasing " begin
+            n = 15
+            x1 = collect(linspace(0,10,n))
+            x2 = collect(linspace(-1,9,n))
+            L1 = Line(x1,x1[end:-1:1])
+            L2 = Line(x2,ones(n)*5)
+            d = upper_env([L1,L2])
+            @test issorted(d[:envelope].x)
+            @test d[:envelope].x == sort(unique(vcat(x1,x2)))
+            @test d[:intersections][1].x ≈ 5.0
+            @test d[:intersections][1].y ≈ 5.0
+        end
+    end
+    @testset "Testing Envelopes over more lines" begin 
+        @testset "upper_env test 1" begin
+            n = 15
+            x1 = collect(linspace(0,10,n))
+            x2 = collect(linspace(-1,9,n))
+            x3 = collect(linspace(-0.1,10,n))
+            L1 = Line(x1,x1)
+            L2 = Line(x2,ones(n)*5)
+            L3 = Line(x3,(x3.^2)/8)
+            d = upper_env([L1,L2,L3])
+            @test issorted(d[:envelope].x)
+            @test d[:envelope].x == sort(unique(vcat(x1,x2,x3,d[:intersections][2].x)))
+            @test length(d[:intersections]) == 2
+            @test d[:intersections][1].x ≈ 5.0
+            @test d[:intersections][1].y ≈ 5.0
+            @test isapprox(d[:intersections][2].x,8.0,rtol=0.01)
+            @test isapprox(d[:intersections][2].y,8.0,rtol=0.01)
         end
 
     end
