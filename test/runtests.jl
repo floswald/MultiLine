@@ -126,33 +126,36 @@ using TestSetExtensions
             x2 = collect(linspace(-1,9,n))
             L1 = Line(x1,x1)
             L2 = Line(x2,ones(n)*5)
-            d = upper_env([L1,L2])
-            @test issorted(d[:envelope].x)
-            @test d[:envelope].x == sort(unique(vcat(x1,x2)))
-            @test d[:intersections][1].x ≈ 5.0
-            @test d[:intersections][1].y ≈ 5.0
+            e = Envelope([L1,L2])
+            upper_env!(e)
+            @test issorted(getx(e))
+            @test getx(e) == sort(unique(vcat(x1,x2)))
+            @test gets(e)[1].x ≈ 5.0
+            @test gets(e)[1].y ≈ 5.0
         end
         @testset "upper_env test 2" begin
             n = 15
             x1 = collect(linspace(0,10,n))
             L1 = Line(x1,x1)
             L2 = Line(x1,ones(n)*5)
-            d = upper_env([L1,L2])
-            @test d[:envelope].x == x1
-            @test issorted(d[:envelope].x)
-            @test d[:intersections][1].x ≈ 5.0
-            @test d[:intersections][1].y ≈ 5.0
+            e = Envelope([L1,L2])
+            upper_env!(e)
+            @test getx(e) == x1
+            @test issorted(getx(e))
+            @test gets(e)[1].x ≈ 5.0
+            @test gets(e)[1].y ≈ 5.0
         end
         @testset "upper_env test 3" begin
             n = 15
             x1 = collect(linspace(0,10,n))
             L1 = Line(x1,x1)
             L2 = Line(x1,5.0+0.3*x1)
-            d = upper_env([L1,L2])
-            @test d[:envelope].x == x1
-            @test issorted(d[:envelope].x)
-            @test d[:intersections][1].x ≈ 5.0/0.7
-            @test d[:intersections][1].y ≈ 5.0/0.7
+            e = Envelope([L1,L2])
+            upper_env!(e)
+            @test getx(e) == x1
+            @test issorted(getx(e))
+            @test gets(e)[1].x ≈ 5.0/0.7
+            @test gets(e)[1].y ≈ 5.0/0.7
         end
         @testset "upper_env test 4" begin
             n = 15
@@ -160,11 +163,12 @@ using TestSetExtensions
             x2 = collect(linspace(-1,9,n))
             L1 = Line(x1,x1)
             L2 = Line(x2,5.0+0.3*x2)
-            d = upper_env([L1,L2])
-            @test issorted(d[:envelope].x)
-            @test d[:envelope].x == sort(unique(vcat(x1,x2)))
-            @test d[:intersections][1].x ≈ 5.0/0.7
-            @test d[:intersections][1].y ≈ 5.0/0.7
+            e = Envelope([L1,L2])
+            upper_env!(e)
+            @test issorted(getx(e))
+            @test getx(e) == sort(unique(vcat(x1,x2)))
+            @test gets(e)[1].x ≈ 5.0/0.7
+            @test gets(e)[1].y ≈ 5.0/0.7
         end
         @testset "upper_env test: decreasing " begin
             n = 15
@@ -172,11 +176,12 @@ using TestSetExtensions
             x2 = collect(linspace(-1,9,n))
             L1 = Line(x1,x1[end:-1:1])
             L2 = Line(x2,ones(n)*5)
-            d = upper_env([L1,L2])
-            @test issorted(d[:envelope].x)
-            @test d[:envelope].x == sort(unique(vcat(x1,x2)))
-            @test d[:intersections][1].x ≈ 5.0
-            @test d[:intersections][1].y ≈ 5.0
+            e = Envelope([L1,L2])
+            upper_env!(e)
+            @test issorted(getx(e))
+            @test getx(e) == sort(unique(vcat(x1,x2)))
+            @test gets(e)[1].x ≈ 5.0
+            @test gets(e)[1].y ≈ 5.0
         end
     end
     @testset "Testing Envelopes over more lines" begin 
@@ -188,14 +193,15 @@ using TestSetExtensions
             L1 = Line(x1,x1)
             L2 = Line(x2,ones(n)*5)
             L3 = Line(x3,(x3.^2)/8)
-            d = upper_env([L1,L2,L3])
-            @test issorted(d[:envelope].x)
-            @test d[:envelope].x == sort(unique(vcat(x1,x2,x3,d[:intersections][2].x)))
-            @test length(d[:intersections]) == 2
-            @test d[:intersections][1].x ≈ 5.0
-            @test d[:intersections][1].y ≈ 5.0
-            @test isapprox(d[:intersections][2].x,8.0,rtol=0.01)
-            @test isapprox(d[:intersections][2].y,8.0,rtol=0.01)
+            e = Envelope([L1,L2,L3])
+            upper_env!(e)
+            @test issorted(getx(e))
+            @test getx(e) == sort(unique(vcat(x1,x2,x3,gets(e)[2].x)))
+            @test length(gets(e)) == 2
+            @test gets(e)[1].x ≈ 5.0
+            @test gets(e)[1].y ≈ 5.0
+            @test isapprox(gets(e)[2].x,8.0,rtol=0.01)
+            @test isapprox(gets(e)[2].y,8.0,rtol=0.01)
         end
         @testset "upper_env test 2" begin
             n = 10
@@ -203,16 +209,35 @@ using TestSetExtensions
             L1 = Line(x1,x1.*(x1.<6))
             L2 = Line(x1,ones(n)*5.*(x1.>4))
             L3 = Line(x1,x1-3)
-            d = upper_env([L1,L2,L3])
-            println(d[:envelope])
-            @test issorted(d[:envelope].x)
-            @test d[:envelope].x == sort(unique(vcat(x1,[d[:intersections][i].x for i in 1:2])))
-            @test length(d[:intersections]) == 2
-            @test d[:intersections][1].x == 5.0
-            @test d[:intersections][1].y == 5.0
-            @test d[:intersections][2].x == 8.0
-            @test d[:intersections][2].y == 5.0
+            e = Envelope([L1,L2,L3])
+            upper_env!(e)
+            @test issorted(getx(e))
+            @test getx(e) == sort(unique(vcat(x1,[gets(e)[i].x for i in 1:2])))
+            @test length(gets(e)) == 2
+            @test gets(e)[1].x == 5.0
+            @test gets(e)[1].y == 5.0
+            @test gets(e)[2].x == 8.0
+            @test gets(e)[2].y == 5.0
         end
+    end
+
+    @testset "create_envelope" begin
+        x = [1,2,3,1.5,2.1,2.9]
+        y = [1,1.5,1.7,1.2,1.8,2.1]
+        L = Line(x,y)
+        e = create_envelope(L)
+        @test isa(e,Envelope)
+        @test length(getx(e))==1
+        @test length(gety(e))==1
+        @test length(gets(e))==0
+        @test length(getr(e))==1
+        println(getr(e))
+        @test eltype(getr(e))==Vector{Point{Float64}}
+
+
+
+
+
     end
 
 end

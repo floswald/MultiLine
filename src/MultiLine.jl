@@ -6,7 +6,11 @@ using Interpolations
 using Roots
 using MiniLogging
 
-export Line, Point, interp, splitat,upper_env
+# Types
+export Line, Point, Envelope
+
+# methods
+export interp, splitat,upper_env!, getx, gety, gets, create_envelope, getr
 
 import Base.size, 
        Base.getindex, 
@@ -43,10 +47,14 @@ basic_config(MiniLogging.DEBUG; date_format="%H:%M:%S")
 struct Point{T}
     x::T
     y::T
+    function Point(x::T,y::T) where T
+        @assert length(x) == length(y)
+        new{T}(x,y)
+    end
 end
 
+
 mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
-    # pts::Vector{Point{T}}
     x::Vector{T}
     y::Vector{T}
     n::Int
@@ -62,16 +70,53 @@ mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
     end
 end
 
-# envelope type
-mutable struct Envelope{T:<Number}
-    L      :: Vector{Line{T}}
-    env    :: Vector{T}
-    isects :: Vector{Point{T}}
-end
+"""
 
-function Line() 
-    Line(Number[],Number[])
+## Envelope
+
+Holds an array of `Line`s, the upper envelope of those lines, and a vector of `Point`s marking the intersections between lines.
+"""
+mutable struct Envelope{T<:Number}
+    L      :: Vector{Line{T}}
+    env    :: Line{T}
+    isects :: Vector{Point{T}}
+    removed :: Vector{Vector{Point{T}}}
+    function Envelope(l::Vector{Line{T}},e::Vector{T},ise::Vector{Point{T}}) where {T<:Number}
+        this = new{T}()
+        this.L = l
+        this.env = e 
+        this.isects = ise
+        this.removed = [Point{T}[]]
+        return this
+    end
+    function Envelope(e::Line{T}) where {T<:Number}
+        this = new{T}()
+        this.L = Line{T}[]
+        this.env = e 
+        this.isects = Point{T}[]
+        this.removed = [Point{T}[]]
+        return this
+    end
+    function Envelope(l::Vector{Line{T}}) where {T<:Number}
+        this = new{T}()
+        this.L = l
+        this.env = Line([typemin(T)],[typemin(T)])
+        this.isects = Point{T}[]
+        this.removed = [Point{T}[] for il in 1:length(l)]
+        return this
+    end
 end
+size(e::Envelope) = size(e.L)
+eltype(e::Envelope) = eltype(e.L) 
+getx(en::Envelope) = en.env.x
+gety(en::Envelope) = en.env.y
+gets(en::Envelope) = en.isects
+getr(en::Envelope) = en.removed
+
+
+# function Line() 
+#     Line(Number[],Number[])
+# end
 function reconfigure!(m::Line)
     # after having updated some objects, need to recompute n
     m.n = length(m.x)
@@ -113,16 +158,16 @@ function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
     return itp[ix]
 end 
 
-"Interpolate a Vector of `Line`s on the same grid. Return a matrix where each row is the interpolation of another `Line`"
-function interp(L::Vector{Line{T}},ix::Vector{T},extrap::Bool=true) where {T<:Number}
+"Interpolate an `Envelope` on a unique grid. Return a matrix where each row is the interpolation of another `Line`"
+function interp(e::Envelope{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
 
     # yy = reinterpret(SVector{length(L),T},vcat([l.y for l in L]'...),(L[1].n,))
     # itp = interpolate((xx,),yy,Gridded(Linear()))
     # y = itp[ix]
     # y = convert(Matrix{T},y)
-    y = zeros(T,length(L),length(ix))
-    for i in eachindex(L)
-        y[i,:] = interp(L[i],ix,extrap)
+    y = zeros(T,length(e.L),length(ix))
+    for i in eachindex(e.L)
+        y[i,:] = interp(e.L[i],ix,extrap)
     end
     return y
 end 
@@ -188,30 +233,30 @@ end
 
 
 """
-    secondary_envenlope(m::Mline)
+    create_envelope(m::Mline)
 
-Prunes the `Mline` object from wrong EGM solution points. Wrong solutions appear in kinked regions.
+splits a `Line` object at wrong EGM solution points. Wrong solutions appear in kinked regions.
 """
-function secondary_envelope(o::Line{T}) where T<:Number
+function create_envelope(o::Line{T}) where T<:Number
 
     # 1) find all jump-backs in x-grid
     ii = o.x[2:end].>o.x[1:end-1]  
 
     # 2) if no backjumps at all, exit
     if all(ii)  
-        # return same object
-        return Dict(:pruned=>o,:idx_removed=>0,:intersections=>0)
+        # return as an Envelope
+        return Envelope(o)
     else
     # 3) else, identify subsets
         i = 1
-        sections = Line[]  # an array of Mlines
+        sections = Line{T}[]  # an array of Lines
         while true
             j = findfirst(ii .!= ii[1])  # identifies all indices within kinked region from left to right until the first kink
 
             # if no more kinks
             if j==0
                 if i > 1
-                    # add remaining Mline
+                    # add remaining Line
                     push!(sections,o)
                 end
                 # then break
@@ -223,39 +268,32 @@ function secondary_envelope(o::Line{T}) where T<:Number
             i += 1
         end
 
-        # 4) do secondary envelope pruning
-        # sort all sections on x
+        # 4) sort all sections on x
         for s in sections
             sort!(s)
         end
-        # 5) compute upper envelope of all sections
-            # - get all x's from all s and sort into a vector xx
-            # - interpolate(extrapolate) all s on xx
-            # - disregard points where some lines are extrapolated
-        u_env = upper_env(s)
-        return Dict(:pruned=>u_env[:envelope],:idx_removed=>diff(o,u_env[:envelope]),:intersections=>u_env[:intersections])
+        return Envelope(sections)
     end
 end
 
-function upper_env(L::Vector{Line{T}}) where T<:Number
+function upper_env!(e::Envelope{T}) where T<:Number
     # 5) compute upper envelope of all lines
         # - get all x's from all s and sort into a vector xx
         # - interpolate(extrapolate) all s on xx
         # - how to deal with points at which some Line is infeasible?
 
-    if length(L)==1
-        warn("an upper envelope requires by definition at least 2 lines.")
-        return 0
+    if length(e.L)<2
+        error("an upper envelope requires by definition at least 2 lines.")
     end
 
     # - get all x's from all Lines and sort into a vector xx
-    xx = sort(unique(vcat([l.x for l in L]...)))
+    xx = sort(unique(vcat([l.x for l in e.L]...)))
     n = length(xx)
 
     # - interpolate(extrapolate) all Ls on xx
     # this returns a matrix (length(L),n)
     # i.e. each row is the interpolation 
-    yy = interp(L,xx)
+    yy = interp(e,xx)
 
     # find the top line at each point in xx
     val,lin_ind = findmax(yy,1)  # colwise max
@@ -274,7 +312,9 @@ function upper_env(L::Vector{Line{T}}) where T<:Number
     if length(s)==0
         # there is one complete upper envelope already
         # return
-        return Dict(:envelope => yy[r_idx[1],:],:intersections=>0)
+        e.env = Line(xx,yy[r_idx[1],:])
+        e.isects = [Point(NaN,NaN)]
+        e.removed = [[Point(NaN,NaN)]]
     else
         # sort out which line is top at which index of xx and compute intersection points in between switches
         # s = 1: there is a switch in top line after the first index
@@ -326,9 +366,9 @@ function upper_env(L::Vector{Line{T}}) where T<:Number
                 # don't add intersection to envelope!
             else
                 # need to to compute intersection
-                f_closure(z) = interp(L[to],[z])[1] - interp(L[from],[z])[1]
+                f_closure(z) = interp(e.L[to],[z])[1] - interp(e.L[from],[z])[1]
                 x_x = fzero(f_closure, x_from, x_to)
-                v_x = interp(L[from],[x_x])[1]
+                v_x = interp(e.L[from],[x_x])[1]
 
                 # record intersection
                 push!(isec,Point(x_x,v_x))
@@ -345,7 +385,14 @@ function upper_env(L::Vector{Line{T}}) where T<:Number
             last_ind = id_s==length(s) ? n : s[id_s+1]
             append!(env,xx[js+1:last_ind],yy[to,js+1:last_ind])
         end
-        return Dict(:envelope => env,:intersections=>isec)
+        e.env = env 
+        e.isects = isec
+        # collect points that were removed from Lines
+        for l in e.L
+            ix = find( !in(getx(e),l.x) || !in(gety(e),l.y) )
+            push!(e.removed,[Point(l.x[jx],l.y[jx]) for jx in ix])
+        end
+        return nothing
     end
 end
 
