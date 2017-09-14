@@ -45,7 +45,7 @@ using TestSetExtensions
         
     end
 
-    @testset "Modifying methods" begin
+    @testset "Modifying Line methods" begin
 
         @testset "prepend" begin
             x = collect(0:0.1:1)
@@ -116,6 +116,12 @@ using TestSetExtensions
             @test !(issorted(L.x))
             sort!(L)
             @test issorted(L.x)
+        end
+    end
+
+    @testset "Envelope" begin
+        @testset "Constructor" begin
+            
         end
     end
 
@@ -230,8 +236,7 @@ using TestSetExtensions
         @test length(getx(e))==1
         @test length(gety(e))==1
         @test length(gets(e))==0
-        @test length(getr(e))==1
-        println(getr(e))
+        @test length(getr(e))==3
         @test eltype(getr(e))==Vector{Point{Float64}}
 
 
