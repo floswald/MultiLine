@@ -120,8 +120,30 @@ using TestSetExtensions
     end
 
     @testset "Envelope" begin
-        @testset "Constructor" begin
-            
+        @testset "Constructors" begin
+            n = 15
+            x1 = collect(linspace(0,10,n))
+            L1 = Line(x1,x1)
+
+            en = Envelope(L1)
+            @test isa(en,Envelope)
+            @test length(en.L)==0
+            @test length(en.env)==n
+            @test length(gets(en))==0
+            @test length(getr(en))==1
+            @test length(getr(en)[1])==0
+            @test eltype(getr(en)[1])==Point{Float64}
+
+            en = Envelope([L1,L1])
+            @test isa(en,Envelope)
+            @test length(en.L)==2
+            @test length(en.env)==1
+            @test length(gets(en))==0
+            @test length(getr(en))==2
+            @test length(getr(en)[1])==0
+            @test length(getr(en)[2])==0
+            @test eltype(getr(en)[2])==Point{Float64}
+            @test isa(getr(en)[2],Vector{Point{Float64}})
         end
     end
 
@@ -237,11 +259,6 @@ using TestSetExtensions
         @test length(gety(e))==1
         @test length(gets(e))==0
         @test length(getr(e))==3
-        @test eltype(getr(e))==Vector{Point{Float64}}
-
-
-
-
 
     end
 

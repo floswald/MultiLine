@@ -20,7 +20,9 @@ import Base.size,
        Base.append!,
        Base.insert!,
        Base.delete!,
-       Base.sort!
+       Base.sort!,
+       Base.length
+
 
 # setup MiniLogging
 logger = get_logger()
@@ -70,53 +72,6 @@ mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
     end
 end
 
-"""
-
-## Envelope
-
-Holds an array of `Line`s, the upper envelope of those lines, and a vector of `Point`s marking the intersections between lines.
-"""
-mutable struct Envelope{T<:Number}
-    L      :: Vector{Line{T}}
-    env    :: Line{T}
-    isects :: Vector{Point{T}}
-    removed :: Vector{Vector{Point{T}}}
-    function Envelope(l::Vector{Line{T}},e::Vector{T},ise::Vector{Point{T}}) where {T<:Number}
-        this = new{T}()
-        this.L = l
-        this.env = e 
-        this.isects = ise
-        this.removed = [Point{T}[]]
-        return this
-    end
-    function Envelope(e::Line{T}) where {T<:Number}
-        this = new{T}()
-        this.L = Line{T}[]
-        this.env = e 
-        this.isects = Point{T}[]
-        this.removed = [Point{T}[]]
-        return this
-    end
-    function Envelope(l::Vector{Line{T}}) where {T<:Number}
-        this = new{T}()
-        this.L = l
-        this.env = Line([typemin(T)],[typemin(T)])
-        this.isects = Point{T}[]
-        this.removed = [Point{T}[] for il in 1:length(l)]
-        return this
-    end
-end
-size(e::Envelope) = size(e.L)
-eltype(e::Envelope) = eltype(e.L) 
-getx(en::Envelope) = en.env.x
-gety(en::Envelope) = en.env.y
-gets(en::Envelope) = en.isects
-getr(en::Envelope) = en.removed
-
-
-# function Line() 
-#     Line(Number[],Number[])
-# end
 function reconfigure!(m::Line)
     # after having updated some objects, need to recompute n
     m.n = length(m.x)
@@ -126,6 +81,7 @@ end
 
 eltype(l::Line) = eltype(l.x) 
 size(l::Line) = (l.n,)
+length(l::Line) = l.n
 function getindex(l::Line,i::Int)
     (l.x[i],l.y[i])
 end
@@ -157,27 +113,6 @@ function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
     end
     return itp[ix]
 end 
-
-"Interpolate an `Envelope` on a unique grid. Return a matrix where each row is the interpolation of another `Line`"
-function interp(e::Envelope{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
-
-    # yy = reinterpret(SVector{length(L),T},vcat([l.y for l in L]'...),(L[1].n,))
-    # itp = interpolate((xx,),yy,Gridded(Linear()))
-    # y = itp[ix]
-    # y = convert(Matrix{T},y)
-    y = zeros(T,length(e.L),length(ix))
-    for i in eachindex(e.L)
-        y[i,:] = interp(e.L[i],ix,extrap)
-    end
-    return y
-end 
-
-# function interp(x::StepRangeLen{T},y::Vector{T},ix::T) where {T<:Number}
-
-#     itp = Interpolations.interpolate(y,Bspline(Linear()))
-#     sitp = scale(itp,x)
-#     return sitp[ix]
-# end
 
 # appending, prepending , deleting and splitting at
 
@@ -230,6 +165,76 @@ function sort!(m::Line)
     m.x = m.x[ix]
     m.y = m.y[ix]
 end
+
+
+
+"""
+
+## Envelope
+
+Holds an array of `Line`s, the upper envelope of those lines, and a vector of `Point`s marking the intersections between lines.
+"""
+mutable struct Envelope{T<:Number}
+    L      :: Vector{Line{T}}
+    env    :: Line{T}
+    isects :: Vector{Point{T}}
+    removed :: Vector{Vector{Point{T}}}
+    # function Envelope(l::Vector{Line{T}},e::Vector{T},ise::Vector{Point{T}}) where {T<:Number}
+    #     this = new{T}()
+    #     this.L = l
+    #     this.env = e 
+    #     this.isects = ise
+    #     this.removed = [Point{T}[]]
+    #     return this
+    # end
+    function Envelope(e::Line{T}) where {T<:Number}
+        this = new{T}()
+        this.L = Line{T}[]
+        this.env = e 
+        this.isects = Point{T}[]
+        this.removed = Vector{Point{T}}[Point{T}[] ]
+        return this
+    end
+    function Envelope(l::Vector{Line{T}}) where {T<:Number}
+        this = new{T}()
+        this.L = l
+        this.env = Line([typemin(T)],[typemin(T)])
+        this.isects = Point{T}[]
+        this.removed = Vector{Point{T}}[Point{T}[] for il in 1:length(l)]
+        return this
+    end
+end
+size(e::Envelope) = size(e.L)
+eltype(e::Envelope) = eltype(e.L) 
+getx(en::Envelope) = en.env.x
+gety(en::Envelope) = en.env.y
+gets(en::Envelope) = en.isects
+getr(en::Envelope) = en.removed
+
+
+
+"Interpolate an `Envelope` on a unique grid. Return a matrix where each row is the interpolation of another `Line`"
+function interp(e::Envelope{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
+
+    # yy = reinterpret(SVector{length(L),T},vcat([l.y for l in L]'...),(L[1].n,))
+    # itp = interpolate((xx,),yy,Gridded(Linear()))
+    # y = itp[ix]
+    # y = convert(Matrix{T},y)
+    y = zeros(T,length(e.L),length(ix))
+    for i in eachindex(e.L)
+        y[i,:] = interp(e.L[i],ix,extrap)
+    end
+    return y
+end 
+
+# function interp(x::StepRangeLen{T},y::Vector{T},ix::T) where {T<:Number}
+
+#     itp = Interpolations.interpolate(y,Bspline(Linear()))
+#     sitp = scale(itp,x)
+#     return sitp[ix]
+# end
+
+
 
 
 """
