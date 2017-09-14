@@ -21,7 +21,8 @@ import Base.size,
        Base.insert!,
        Base.delete!,
        Base.sort!,
-       Base.length
+       Base.length,
+       Base.show
 
 
 # setup MiniLogging
@@ -54,6 +55,11 @@ struct Point{T}
         new{T}(x,y)
     end
 end
+function show(io::IO,p::Point{T}) where T
+    print(io,"Point of type $T:\n")
+    print(io,"      x = $(p.x)\n")
+    print(io,"      y = $(p.y)\n")
+end
 
 
 mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
@@ -70,6 +76,12 @@ mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
         @assert length(y)==this.n
         return this
     end
+end
+function show(io::IO,L::Line{T}) where {T<:Number}
+    print(io,"$T Line\n")
+    print(io,"number of grid points: $(L.n)\n")
+    print(io,"domain: $(L.ex)\n")
+    print(io,"range: $(extrema(L.y))\n")
 end
 
 function reconfigure!(m::Line)
@@ -200,9 +212,15 @@ mutable struct Envelope{T<:Number}
         this.L = l
         this.env = Line([typemin(T)],[typemin(T)])
         this.isects = Point{T}[]
-        this.removed = Vector{Point{T}}[Point{T}[] for il in 1:length(l)]
+        this.removed = Vector{Point{T}}[Point{T}[] ]
         return this
     end
+end
+function show(io::IO,en::Envelope{T}) where {T<:Number}
+    print(io,"$T Envelope\n")
+    print(io,"num of `Line`s: $(length(en.L))\n")
+    print(io,"num of intersections: $(length(en.isects))\n")
+    print(io,"num of pts removed: $(length(en.removed))\n")
 end
 size(e::Envelope) = size(e.L)
 eltype(e::Envelope) = eltype(e.L) 
