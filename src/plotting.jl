@@ -1,0 +1,74 @@
+
+@recipe function f(x::Envelope; removed=false)
+
+    # defaults
+    grid --> true
+    xticks := true
+    legend := false
+
+    # if line array exists, plot
+    if length(x.L) > 0
+        for l in x.L
+            @series begin
+                # subplot := 1
+                linetype := :line 
+                linecolor := :black
+                linewidth := 1
+                markershape := :circle
+                markerstrokecolor := :black
+                markercolor := :white
+                markersize := 2
+                (l.x,l.y)
+            end
+        end
+    end
+    # plot envelope, if exists
+    if x.env_set
+        @series begin
+            # subplot := 1
+            linetype := :line 
+            linecolor := :red
+            linewidth := 4
+            markershape := :circle
+            markercolor := :white
+            # markeralpha := 0.5
+            markerstrokecolor := :black
+            markersize := 3
+            (getx(x),gety(x))
+        end
+        if removed
+            for ir in x.removed
+                if length(ir) > 0
+                    @series begin
+                        seriestype = :scatter
+                        markershape := :rect
+                        markersize := 3
+                        markerstrokecolor := :black
+                        markercolor := :white
+                        markeralpha := 0.5
+                        [ir[i].x for i in 1:length(ir)],[ir[i].y for i in 1:length(ir)]
+                    end
+                end
+            end
+        end
+    end
+end
+
+function tplot()
+
+    f1(x) = ones(length(x))
+    f2(x) = 0.5x
+    f3(x) = x-2
+    f4(x) = 2x-8 
+    x1 = collect(linspace(0.9,2.1,14))
+    x2 = collect(linspace(1,7,19))
+    x3 = collect(linspace(2,7,15))
+    x4 = collect(linspace(4,8,25))
+    X = [x1...,x2...,x3...,x4...]
+    L = Line([x1...,x2...,x3...,x4...],vcat(f1(x1),f2(x2),f3(x3),f4(x4)))
+    en = create_envelope(L)
+    upper_env!(en)
+
+    plot(en,removed=true)
+
+end

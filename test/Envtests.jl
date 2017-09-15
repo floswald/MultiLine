@@ -13,6 +13,7 @@
         @test length(gets(en))==0
         @test length(getr(en))==1
         @test length(getr(en)[1])==0
+        @test en.env_set
         @test eltype(getr(en)[1])==Point{Float64}
 
         en = Envelope([L1,L1])
@@ -24,6 +25,7 @@
         @test length(getr(en)[1])==0
         @test eltype(getr(en)[1])==Point{Float64}
         @test isa(getr(en)[1],Vector{Point{Float64}})
+        @test !en.env_set
     end
 end
 

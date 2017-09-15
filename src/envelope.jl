@@ -8,6 +8,7 @@ Holds an array of `Line`s, the upper envelope of those lines, and a vector of `P
 mutable struct Envelope{T<:Number}
     L      :: Vector{Line{T}}
     env    :: Line{T}
+    env_set :: Bool
     isects :: Vector{Point{T}}
     removed :: Vector{Vector{Point{T}}}
     # function Envelope(l::Vector{Line{T}},e::Vector{T},ise::Vector{Point{T}}) where {T<:Number}
@@ -22,6 +23,7 @@ mutable struct Envelope{T<:Number}
         this = new{T}()
         this.L = Line{T}[]
         this.env = e 
+        this.env_set = true
         this.isects = Point{T}[]
         this.removed = Vector{Point{T}}[Point{T}[] ]
         return this
@@ -30,6 +32,7 @@ mutable struct Envelope{T<:Number}
         this = new{T}()
         this.L = l
         this.env = Line([typemin(T)],[typemin(T)])
+        this.env_set = false
         this.isects = Point{T}[]
         this.removed = Vector{Point{T}}[Point{T}[] ]
         return this
@@ -268,11 +271,13 @@ function upper_env!(e::Envelope{T}) where T<:Number
             @debug(logger,"setdiff(l.x,x) = $(setdiff(getx(e),l.x))")
             ix = map(x->!in(x,getx(e)),l.x) 
             iy = map(x->!in(x,gety(e)),l.y) 
-            jj = ix .| iy
-            if length(ix) > 0
-                push!(e.removed,[Point(l.x[jx],l.y[jx]) for jx in ix])
+            jj = find(ix .| iy)
+            if length(jj) > 0
+                push!(e.removed,[Point(l.x[jx],l.y[jx]) for jx in jj])
             end
         end
+        # say that you have now set an upper envelope on this object
+        e.env_set = true
         return nothing
     end
 end

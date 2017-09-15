@@ -5,6 +5,8 @@ module MultiLine
 using Interpolations
 using Roots
 using MiniLogging
+using Plots
+plotlyjs()
 
 # Types
 export Line, Point, Envelope
@@ -27,16 +29,17 @@ import Base.size,
 
 # setup MiniLogging
 logger = get_logger()
-# if isinteractive()
+if isinteractive()
     basic_config(MiniLogging.DEBUG; date_format="%H:%M:%S")
-# else
-#     basic_config(MiniLogging.INFO; date_format="%H:%M:%S")
-# end
+else
+    basic_config(MiniLogging.INFO; date_format="%H:%M:%S")
+end
 
 
 # includes
 include("line.jl")
 include("envelope.jl")
+include("plotting.jl")
 
 
 end # module
