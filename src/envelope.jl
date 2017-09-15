@@ -99,7 +99,7 @@ function create_envelope(o::Line{T}) where T<:Number
     # 1) find all jump-backs in x-grid
     ii = o.x[2:end].>o.x[1:end-1]  
     @debug(logger,"create_envelope: ii = $(find(.!(ii)))")
-    @debug(logger,"create_envelope: x = $(o.x[find(!ii)])")
+    @debug(logger,"create_envelope: x = $(o.x[find(.!(ii))])")
 
     # 2) if no backjumps at all, exit
     if all(ii)  
@@ -109,6 +109,7 @@ function create_envelope(o::Line{T}) where T<:Number
     # 3) else, identify subsets
         i = 1
         sections = Line{T}[]  # an array of Lines
+        new_sections = Line{T}[]  # an array of Lines
         while true
             # println(ii)
             j = findfirst(ii .!= ii[1])  # identifies all indices within kinked region from left to right until the first kink
@@ -132,12 +133,16 @@ function create_envelope(o::Line{T}) where T<:Number
         # all the ones with 2 un-sorted x corrdinates are illegal lines from connection two proper ones
         # discard those
         ns = [!issorted(s.x) && length(s.x)==2 for s in sections]
-        println(ns)
-        # 4) sort all sections on x
-        for s in sections
-            sort!(s)
+        @debug(logger,"which illegal $ns")
+
+        # 4) get rid of illegal sections on x
+        for s in eachindex(sections)
+            if !ns[s]
+                push!(new_sections,sections[s])
+                @assert(issorted(sections[s].x))
+            end
         end
-        return Envelope(sections)
+        return Envelope(new_sections)
     end
 end
 
@@ -257,10 +262,13 @@ function upper_env!(e::Envelope{T}) where T<:Number
         e.env = env 
         e.isects = isec
         # collect points that were removed from Lines
-            # println("x = $(getx(e))")
+        @debug(logger,"x = $(getx(e))")
         for l in e.L
-            # println("l.x = $(l.x)")
-            ix = find( map(x->!in(x,getx(e)),l.x)  )
+            @debug(logger,"l.x = $(l.x)")
+            @debug(logger,"setdiff(l.x,x) = $(setdiff(getx(e),l.x))")
+            ix = map(x->!in(x,getx(e)),l.x) 
+            iy = map(x->!in(x,gety(e)),l.y) 
+            jj = ix .| iy
             if length(ix) > 0
                 push!(e.removed,[Point(l.x[jx],l.y[jx]) for jx in ix])
             end

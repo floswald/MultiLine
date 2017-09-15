@@ -1,7 +1,7 @@
 
 module MultiLine
 
-using StaticArrays
+# using StaticArrays
 using Interpolations
 using Roots
 using MiniLogging
