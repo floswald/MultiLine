@@ -57,6 +57,7 @@ function interp(e::Envelope{T},ix::Vector{T},extrap::Bool=true) where {T<:Number
     # itp = interpolate((xx,),yy,Gridded(Linear()))
     # y = itp[ix]
     # y = convert(Matrix{T},y)
+    # @debug(logger,"ix = $ix")
     y = zeros(T,length(e.L),length(ix))
     for i in eachindex(e.L)
         y[i,:] = interp(e.L[i],ix,extrap)
@@ -97,6 +98,8 @@ function create_envelope(o::Line{T}) where T<:Number
 
     # 1) find all jump-backs in x-grid
     ii = o.x[2:end].>o.x[1:end-1]  
+    @debug(logger,"create_envelope: ii = $(find(.!(ii)))")
+    @debug(logger,"create_envelope: x = $(o.x[find(!ii)])")
 
     # 2) if no backjumps at all, exit
     if all(ii)  
@@ -126,6 +129,10 @@ function create_envelope(o::Line{T}) where T<:Number
             i += 1
         end
 
+        # all the ones with 2 un-sorted x corrdinates are illegal lines from connection two proper ones
+        # discard those
+        ns = [!issorted(s.x) && length(s.x)==2 for s in sections]
+        println(ns)
         # 4) sort all sections on x
         for s in sections
             sort!(s)
@@ -163,6 +170,10 @@ function upper_env!(e::Envelope{T}) where T<:Number
     # s tells us after which position in xx we have a change in optimal line
     s = find(r_idx[2:end].!=r_idx[1:end-1])
 
+    @debug(logger,"upper_env: jumps after $s")
+    @debug(logger,"upper_env: jumps at $(xx[s])")
+
+
 
     # Assemble Upper Envelope from Line segments
     # ==========================================
@@ -195,8 +206,8 @@ function upper_env!(e::Envelope{T}) where T<:Number
             # switching from Line to Line
             from = r_idx[js]
             to   = r_idx[js+1]
-            @debug(logger,"from = $(r_idx[js])")
-            @debug(logger,"to   = $(r_idx[js+1])")
+            @debug(logger,"from L number $(r_idx[js])")
+            @debug(logger,"to L Number $(r_idx[js+1])")
 
             # xx coordinates between which the switching occurs
             # remember xx is a vector as long as size(yy,2)
@@ -246,9 +257,13 @@ function upper_env!(e::Envelope{T}) where T<:Number
         e.env = env 
         e.isects = isec
         # collect points that were removed from Lines
+            # println("x = $(getx(e))")
         for l in e.L
-            ix = find( !in(getx(e),l.x) || !in(gety(e),l.y) )
-            push!(e.removed,[Point(l.x[jx],l.y[jx]) for jx in ix])
+            # println("l.x = $(l.x)")
+            ix = find( map(x->!in(x,getx(e)),l.x)  )
+            if length(ix) > 0
+                push!(e.removed,[Point(l.x[jx],l.y[jx]) for jx in ix])
+            end
         end
         return nothing
     end

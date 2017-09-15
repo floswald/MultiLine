@@ -27,11 +27,11 @@ import Base.size,
 
 # setup MiniLogging
 logger = get_logger()
-if isinteractive()
+# if isinteractive()
     basic_config(MiniLogging.DEBUG; date_format="%H:%M:%S")
-else
-    basic_config(MiniLogging.INFO; date_format="%H:%M:%S")
-end
+# else
+#     basic_config(MiniLogging.INFO; date_format="%H:%M:%S")
+# end
 
 
 # includes

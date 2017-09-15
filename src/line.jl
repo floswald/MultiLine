@@ -66,6 +66,7 @@ end
 function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
     # whenever 
     xex = extrema(ix)
+    # @debug(logger,"interpolating $ix ")
     if xex[1] < l.ex[1] || xex[2] > l.ex[2]
         if extrap 
             itp = extrapolate(interpolate((l.x,),l.y,Gridded(Linear())),Linear())
