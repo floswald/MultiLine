@@ -6,7 +6,8 @@ using Interpolations
 using Roots
 using MiniLogging
 using Plots
-plotlyjs()
+# plotlyjs()
+pyplot()
 
 # Types
 export Line, Point, Envelope

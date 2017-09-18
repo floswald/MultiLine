@@ -194,7 +194,6 @@ end
         @test getx(en) == xx
         yy = reshape(vcat([[f1(ix) f2(ix) f3(ix) f4(ix)] for ix in xx]...),length(xx),4)
         @test isapprox(gety(en)[:],findmax(yy,2)[1][:])
-        println(en.removed)
 
 
     end
