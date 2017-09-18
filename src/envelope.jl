@@ -19,6 +19,15 @@ mutable struct Envelope{T<:Number}
     #     this.removed = [Point{T}[]]
     #     return this
     # end
+    function Envelope(x::T) where {T<:Number}
+        this = new{T}()
+        this.L = Line{T}[]
+        this.env = Line([typemin(T)],[typemin(T)])
+        this.env_set = true
+        this.isects = Point{T}[]
+        this.removed = Vector{Point{T}}[Point{T}[] ]
+        return this
+    end
     function Envelope(e::Line{T}) where {T<:Number}
         this = new{T}()
         this.L = Line{T}[]
@@ -42,7 +51,7 @@ function show(io::IO,en::Envelope{T}) where {T<:Number}
     print(io,"$T Envelope\n")
     print(io,"num of `Line`s: $(length(en.L))\n")
     print(io,"num of intersections: $(length(en.isects))\n")
-    print(io,"num of pts removed: $(length(en.removed))\n")
+    print(io,"num of pts removed: $(sum(length(i) for i in en.removed))\n")
 end
 size(e::Envelope) = size(e.L)
 eltype(e::Envelope) = eltype(e.L) 
@@ -50,6 +59,10 @@ getx(en::Envelope) = en.env.x
 gety(en::Envelope) = en.env.y
 gets(en::Envelope) = en.isects
 getr(en::Envelope) = en.removed
+function set!(en::Envelope{T},L::Line{T}) where {T<:Number}
+    en.env = L
+end
+
 
 
 
