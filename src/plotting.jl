@@ -54,6 +54,27 @@
     end
 end
 
+function tplot1()
+    n = 15
+    x1 = collect(linspace(0,10,n))
+    x2 = collect(linspace(-1,9,n))
+    L1 = Line(x1,x1)
+    L2 = Line(x2,ones(n)*5)
+    e = Envelope([L1,L2])
+    plot(e)
+end
+
+function tplot2()
+    n = 15
+    x1 = collect(linspace(0,10,n))
+    x2 = collect(linspace(-1,9,n))
+    L1 = Line(x1,x1)
+    L2 = Line(x2,ones(n)*5)
+    e = Envelope([L1,L2])
+    upper_env!(e)
+    plot(e)
+end
+
 function tplot()
 
     f1(x) = ones(length(x))
