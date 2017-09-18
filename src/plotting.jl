@@ -27,8 +27,8 @@
         @series begin
             # subplot := 1
             linetype := :line 
-            linecolor := :red
-            linewidth := 4
+            linecolor --> :red
+            linewidth --> 4
             markershape := :circle
             markercolor := :white
             # markeralpha := 0.5
@@ -75,21 +75,82 @@ function tplot2()
     plot(e)
 end
 
-function tplot()
+function f3a()
 
     f1(x) = ones(length(x))
     f2(x) = 0.5x
     f3(x) = x-2
     f4(x) = 2x-8 
-    x1 = collect(linspace(0.9,2.1,14))
+    x1 = collect(linspace(-1,0.9,6))
     x2 = collect(linspace(1,7,19))
     x3 = collect(linspace(2,7,15))
     x4 = collect(linspace(4,8,25))
     X = [x1...,x2...,x3...,x4...]
     L = Line([x1...,x2...,x3...,x4...],vcat(f1(x1),f2(x2),f3(x3),f4(x4)))
     en = create_envelope(L)
-    upper_env!(en)
+    return en
+end
+function f3b()
 
-    plot(en,removed=true)
+    f1(x) = ones(length(x))
+    f2(x) = 0.5x
+    f3(x) = x-2
+    f4(x) = 2x-8 
+    x1 = collect(linspace(-1,3.1,6))
+    x2 = collect(linspace(1,7,19))
+    x3 = collect(linspace(2,7,15))
+    x4 = collect(linspace(4,8,25))
+    X = [x1...,x2...,x3...,x4...]
+    L = Line([x1...,x2...,x3...,x4...],vcat(f1(x1),f2(x2),f3(x3),f4(x4)))
+    en = create_envelope(L)
+    return en
+end
+
+function tplot3a()
+
+    en = f3a()
+
+    p1 = plot(en)
+
+    upper_env!(en)
+    p2 = plot(en,removed=true)
+    plot(p1,p2)
 
 end
+
+function tplot3()
+
+    en = f3b()
+
+    p1 = plot(en)
+
+    upper_env!(en)
+    p2 = plot(en,removed=true)
+
+    plot(p1,p2)
+
+end
+
+function tplot4()
+
+    f1(x) = ones(length(x))
+    f2(x) = 0.5x
+    f3(x) = x-2
+    f4(x) = 2x-8 
+    x1 = collect(linspace(0.1,1.5,5))
+    x2 = collect(linspace(1,7,19))
+    x3 = collect(linspace(2,7,15))
+    x4 = collect(linspace(4,8,25))
+    X = [x1...,x2...,x3...,x4...]
+    L = Line([x1...,x2...,x3...,x4...],vcat(f1(x1),f2(x2),f3(x3),f4(x4)))
+    en = create_envelope(L)
+
+    p1 = plot(en)
+
+    upper_env!(en)
+
+    p2 = plot(en,removed=true)
+
+    plot(p1,p2)
+end
+
