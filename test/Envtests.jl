@@ -26,6 +26,11 @@
         @test eltype(getr(en)[1])==Point{Float64}
         @test isa(getr(en)[1],Vector{Point{Float64}})
         @test !en.env_set
+
+        en = Envelope(1)
+        @test isa(en,Envelope{Int})
+        @test !en.env_set
+        @test length(en.env)==1
     end
 end
 

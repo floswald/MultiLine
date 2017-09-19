@@ -23,7 +23,7 @@ mutable struct Envelope{T<:Number}
         this = new{T}()
         this.L = Line{T}[]
         this.env = Line([typemin(T)],[typemin(T)])
-        this.env_set = true
+        this.env_set = false
         this.isects = Point{T}[]
         this.removed = Vector{Point{T}}[Point{T}[] ]
         return this
