@@ -59,8 +59,12 @@ getx(en::Envelope) = en.env.x
 gety(en::Envelope) = en.env.y
 gets(en::Envelope) = en.isects
 getr(en::Envelope) = en.removed
+getLine(en::Envelope,j::Int) = en.L[j]
 function set!(en::Envelope{T},L::Line{T}) where {T<:Number}
     en.env = L
+end
+function set!(en::Envelope{T},id::Int,l::Line{T}) where {T<:Number}
+    en.L[id] = l
 end
 
 
