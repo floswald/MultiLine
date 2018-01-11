@@ -14,17 +14,29 @@ function show(io::IO,p::Point{T}) where T
 end
 
 
+"""
+# Line
+
+A `Line` is composed of two vectors, `x` and `y`, representing abszissa and ordinate axis in a standard cartesian coordinate system.
+
+## Fields
+
+* `x`: x axis points
+* `y`: y axis points
+* `n`: number of points in line
+* `dom`: the domain of the line, i.e. the range of `x`.
+"""
 mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
     x::Vector{T}
     y::Vector{T}
     n::Int
-    ex::Tuple
+    dom::Tuple
     function Line(x::Vector{T},y::Vector{T}) where {T<:Number}
         this = new{T}()
         this.x = copy(x)
         this.n = length(x)
         this.y = copy(y)
-        this.ex = length(x) >0 ? extrema(x) : (0,0)
+        this.dom = length(x) >0 ? extrema(x) : (0,0)
         @assert length(y)==this.n
         return this
     end
@@ -32,14 +44,14 @@ end
 function show(io::IO,L::Line{T}) where {T<:Number}
     print(io,"$T Line\n")
     print(io,"number of grid points: $(L.n)\n")
-    print(io,"domain: $(L.ex)\n")
+    print(io,"domain: $(L.dom)\n")
     print(io,"range: $(extrema(L.y))\n")
 end
 
 function reconfigure!(m::Line)
     # after having updated some objects, need to recompute n
     m.n = length(m.x)
-    m.ex = extrema(m.x)
+    m.dom = extrema(m.x)
     @assert m.n == length(m.y)
 end
 
@@ -67,7 +79,7 @@ function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
     # whenever 
     xex = extrema(ix)
     # @debug(logger,"interpolating $ix ")
-    if xex[1] < l.ex[1] || xex[2] > l.ex[2]
+    if xex[1] < l.dom[1] || xex[2] > l.dom[2]
         if extrap 
             itp = extrapolate(interpolate((l.x,),l.y,Gridded(Linear())),Linear())
         else

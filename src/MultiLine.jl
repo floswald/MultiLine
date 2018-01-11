@@ -4,10 +4,9 @@ module MultiLine
 # using StaticArrays
 using Interpolations
 using Roots
-using MiniLogging
 using Plots
-plotlyjs()
-# pyplot()
+# plotlyjs()
+pyplot()
 
 # Types
 export Line, Point, Envelope
@@ -26,15 +25,6 @@ import Base.size,
        Base.sort!,
        Base.length,
        Base.show
-
-
-# setup MiniLogging
-logger = get_logger()
-if isinteractive()
-    basic_config(MiniLogging.DEBUG; date_format="%H:%M:%S")
-else
-    basic_config(MiniLogging.INFO; date_format="%H:%M:%S")
-end
 
 
 # includes

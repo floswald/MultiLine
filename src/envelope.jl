@@ -77,7 +77,7 @@ function interp(e::Envelope{T},ix::Vector{T},extrap::Bool=true) where {T<:Number
     # itp = interpolate((xx,),yy,Gridded(Linear()))
     # y = itp[ix]
     # y = convert(Matrix{T},y)
-    # @debug(logger,"ix = $ix")
+    # info("ix = $ix")
     y = zeros(T,length(e.L),length(ix))
     for i in eachindex(e.L)
         y[i,:] = interp(e.L[i],ix,extrap)
@@ -118,8 +118,8 @@ function create_envelope(o::Line{T}) where T<:Number
 
     # 1) find all jump-backs in x-grid
     ii = o.x[2:end].>o.x[1:end-1]  
-    @debug(logger,"create_envelope: ii = $(find(.!(ii)))")
-    @debug(logger,"create_envelope: x = $(o.x[find(.!(ii))])")
+    info("create_envelope: ii = $(find(.!(ii)))")
+    info("create_envelope: x = $(o.x[find(.!(ii))])")
 
     # 2) if no backjumps at all, exit
     if all(ii)  
@@ -153,7 +153,7 @@ function create_envelope(o::Line{T}) where T<:Number
         # all the ones with 2 un-sorted x corrdinates are illegal lines from connection two proper ones
         # discard those
         ns = [!issorted(s.x) && length(s.x)==2 for s in sections]
-        @debug(logger,"which illegal $ns")
+        info("which illegal $ns")
 
         # 4) get rid of illegal sections on x
         for s in eachindex(sections)
@@ -195,8 +195,8 @@ function upper_env!(e::Envelope{T}) where T<:Number
     # s tells us after which position in xx we have a change in optimal line
     s = find(r_idx[2:end].!=r_idx[1:end-1])
 
-    @debug(logger,"upper_env: jumps after $s")
-    @debug(logger,"upper_env: jumps at $(xx[s])")
+    info("upper_env: jumps after $s")
+    info("upper_env: jumps at $(xx[s])")
 
 
 
@@ -224,28 +224,28 @@ function upper_env!(e::Envelope{T}) where T<:Number
         for id_s in eachindex(s)
 
             js = s[id_s]  # value of index: position in xx
-            # @debug(logger,"js = $js")
+            # info("js = $js")
             jx  = subs[js][2]   # colindex of element in yy before switch takes place
             jjx = subs[js+1][2] # colindex of element in yy after switch took place
 
             # switching from Line to Line
             from = r_idx[js]
             to   = r_idx[js+1]
-            @debug(logger,"from L number $(r_idx[js])")
-            @debug(logger,"to L Number $(r_idx[js+1])")
+            info("from L number $(r_idx[js])")
+            info("to L Number $(r_idx[js+1])")
 
             # xx coordinates between which the switching occurs
             # remember xx is a vector as long as size(yy,2)
             x_from = xx[jx ]  # only pick col coordinate
             x_to   = xx[jjx]  # only pick col coordinate
-            @debug(logger,"x_from = $(xx[jx ])")  # only pick col coordinate
-            @debug(logger,"x_to   = $(xx[jjx])")  # only pick col coordinate
+            info("x_from = $(xx[jx ])")  # only pick col coordinate
+            info("x_to   = $(xx[jjx])")  # only pick col coordinate
 
             # values of both lines at those corrdinates
             v_from = yy[subs[js]...]
             v_to   = yy[subs[js+1]...]
-            @debug(logger,"v_from = $(yy[subs[js]...])")
-            @debug(logger,"v_to   = $(yy[subs[js+1]...])")
+            info("v_from = $(yy[subs[js]...])")
+            info("v_to   = $(yy[subs[js+1]...])")
 
             # The intersction of both lines ∈ [x_from,x_to]
             # complication: intersection could also be on the egdes of this interval.
@@ -268,8 +268,8 @@ function upper_env!(e::Envelope{T}) where T<:Number
                 push!(isec,Point(x_x,v_x))
                 # and add to envelope
                 append!(env,x_x,v_x)
-                @debug(logger,"added $(Point(x_x,v_x)) to envelope")
-                @debug(logger,"x in env? $(in(x_x,env.x))")
+                info("added $(Point(x_x,v_x)) to envelope")
+                info("x in env? $(in(x_x,env.x))")
             end
 
             # add next line segment to envelope
@@ -282,10 +282,10 @@ function upper_env!(e::Envelope{T}) where T<:Number
         e.env = env 
         e.isects = isec
         # collect points that were removed from Lines
-        @debug(logger,"x = $(getx(e))")
+        info("x = $(getx(e))")
         for l in e.L
-            @debug(logger,"l.x = $(l.x)")
-            @debug(logger,"setdiff(l.x,x) = $(setdiff(getx(e),l.x))")
+            info("l.x = $(l.x)")
+            info("setdiff(l.x,x) = $(setdiff(getx(e),l.x))")
             ix = map(x->!in(x,getx(e)),l.x) 
             iy = map(x->!in(x,gety(e)),l.y) 
             jj = find(ix .| iy)
