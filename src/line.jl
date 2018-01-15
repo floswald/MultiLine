@@ -2,15 +2,19 @@
 struct Point{T}
     x::T
     y::T
-    function Point(x::T,y::T) where T
+    i::Int
+    new_point::Bool
+    function Point(x::T,y::T;i::Int=0,newpoint=false) where T
         @assert length(x) == length(y)
-        new{T}(x,y)
+        new{T}(x,y,i,newpoint)
     end
 end
 function show(io::IO,p::Point{T}) where T
     print(io,"Point of type $T:\n")
     print(io,"      x = $(p.x)\n")
     print(io,"      y = $(p.y)\n")
+    print(io,"    idx = $(p.i)\n")
+    print(io,"    new = $(p.new_point)\n")
 end
 
 

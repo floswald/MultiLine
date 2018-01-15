@@ -4,6 +4,15 @@
 ## Envelope
 
 Holds an array of `Line`s, the upper envelope of those lines, and a vector of `Point`s marking the intersections between lines.
+
+### Fields
+
+* `L      `: Vector of [`Line`]@ref
+* `env    `: The upper envelope (i.e pointwise maximum) over `L`, itself a [`Line`]@ref
+* `env_set`: `true` if envelope vector was set.
+* `isects `: Vector of intersections between `Line`s in `L`
+* `removed`: Vector of Points removed from `env` during assembly
+
 """
 mutable struct Envelope{T<:Number}
     L      :: Vector{Line{T}}
@@ -11,14 +20,6 @@ mutable struct Envelope{T<:Number}
     env_set :: Bool
     isects :: Vector{Point{T}}
     removed :: Vector{Vector{Point{T}}}
-    # function Envelope(l::Vector{Line{T}},e::Vector{T},ise::Vector{Point{T}}) where {T<:Number}
-    #     this = new{T}()
-    #     this.L = l
-    #     this.env = e 
-    #     this.isects = ise
-    #     this.removed = [Point{T}[]]
-    #     return this
-    # end
     function Envelope(x::T) where {T<:Number}
         this = new{T}()
         this.L = Line{T}[]
@@ -59,13 +60,15 @@ getx(en::Envelope) = en.env.x
 gety(en::Envelope) = en.env.y
 gets(en::Envelope) = en.isects
 getr(en::Envelope) = en.removed
-getLine(en::Envelope,j::Int) = en.L[j]
-function set!(en::Envelope{T},L::Line{T}) where {T<:Number}
-    en.env = L
-end
-function set!(en::Envelope{T},id::Int,l::Line{T}) where {T<:Number}
-    en.L[id] = l
-end
+# getLine(en::Envelope,j::Int) = en.L[j]
+# function set!(en::Envelope{T},L::Line{T}) where {T<:Number}
+#     en.env = L
+# end
+# function set!(en::Envelope{T},id::Int,l::Line{T}) where {T<:Number}
+#     en.L[id] = l
+# end
+# Base.setindex!(en::Envelope,l::Line,id::Int) = en.L[id] = l
+Base.getindex(en::Envelope,id::Int) = en.L[id]
 
 
 
@@ -110,16 +113,16 @@ end
 
 
 """
-    create_envelope(m::Mline)
+    splitLine(m::Line)
 
 splits a `Line` object at wrong EGM solution points. Wrong solutions appear in kinked regions.
 """
-function create_envelope(o::Line{T}) where T<:Number
+function splitLine(o::Line{T}) where T<:Number
 
     # 1) find all jump-backs in x-grid
     ii = o.x[2:end].>o.x[1:end-1]  
-    info("create_envelope: ii = $(find(.!(ii)))")
-    info("create_envelope: x = $(o.x[find(.!(ii))])")
+    info("splitLine: ii = $(find(.!(ii)))")
+    info("splitLine: x = $(o.x[find(.!(ii))])")
 
     # 2) if no backjumps at all, exit
     if all(ii)  
@@ -207,8 +210,8 @@ function upper_env!(e::Envelope{T}) where T<:Number
         # there is one complete upper envelope already
         # return
         e.env = Line(xx,yy[r_idx[1],:])
-        e.isects = [Point(NaN,NaN)]
-        e.removed = [[Point(NaN,NaN)]]
+        # e.isects = [Point(NaN,NaN)]
+        # e.removed = [[Point(NaN,NaN)]]
     else
         # sort out which line is top at which index of xx and compute intersection points in between switches
         # s = 1: there is a switch in top line after the first index
@@ -219,12 +222,11 @@ function upper_env!(e::Envelope{T}) where T<:Number
         # that line is on top until index s[1] in xx, after which the 
         # top line changes.
         env = Line(xx[1:s[1]],yy[r_idx[s[1]],1:s[1]] )
-        isec = Point{T}[]
+        isec = [Point(NaN,NaN) for i in 1:length(s)]
 
-        for id_s in eachindex(s)
+        for id_s in eachindex(s)   # id_s indexes line segment in resulting envelope: for n intersecting lines, there are n-1 segments
 
             js = s[id_s]  # value of index: position in xx
-            # info("js = $js")
             jx  = subs[js][2]   # colindex of element in yy before switch takes place
             jjx = subs[js+1][2] # colindex of element in yy after switch took place
 
@@ -252,11 +254,11 @@ function upper_env!(e::Envelope{T}) where T<:Number
             # this is easy to check:
             if isapprox(yy[from,jx] , yy[to,jx])
                 # intersection is on lower bound of interval
-                push!(isec,Point(x_from,v_from))
+                isec[id_s] = Point(x_from,v_from,i=id_s)
                 # don't add intersection to envelope!
             elseif isapprox(yy[from,jjx] , yy[to,jjx])
                 # intersection is on upper bound of interval
-                push!(isec,Point(x_to,v_to))
+                isec[id_s] = Point(x_to,v_to,i=id_s)
                 # don't add intersection to envelope!
             else
                 # need to to compute intersection
@@ -264,11 +266,11 @@ function upper_env!(e::Envelope{T}) where T<:Number
                 x_x = fzero(f_closure, x_from, x_to)
                 v_x = interp(e.L[from],[x_x])[1]
 
-                # record intersection
-                push!(isec,Point(x_x,v_x))
+                # record intersection as new point
+                isec[id_s] = Point(x_x,v_x,i=id_s,newpoint=true)
                 # and add to envelope
                 append!(env,x_x,v_x)
-                info("added $(Point(x_x,v_x)) to envelope")
+                info("added $(Point(x_x,v_x,i=id_s)) to envelope")
                 info("x in env? $(in(x_x,env.x))")
             end
 
@@ -278,19 +280,20 @@ function upper_env!(e::Envelope{T}) where T<:Number
             #     to last index before next switch: s[id_s+1]
             last_ind = id_s==length(s) ? n : s[id_s+1]
             append!(env,xx[js+1:last_ind],yy[to,js+1:last_ind])
-        end
+        end  # eachindex(s)
+
         e.env = env 
         e.isects = isec
-        # collect points that were removed from Lines
         info("x = $(getx(e))")
         for l in e.L
+            # collect points that were removed from Lines
             info("l.x = $(l.x)")
             info("setdiff(l.x,x) = $(setdiff(getx(e),l.x))")
             ix = map(x->!in(x,getx(e)),l.x) 
             iy = map(x->!in(x,gety(e)),l.y) 
             jj = find(ix .| iy)
             if length(jj) > 0
-                push!(e.removed,[Point(l.x[jx],l.y[jx]) for jx in jj])
+                push!(e.removed,[Point(l.x[jx],l.y[jx],i=jx) for jx in jj])
             end
         end
         # say that you have now set an upper envelope on this object

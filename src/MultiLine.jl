@@ -12,7 +12,7 @@ pyplot()
 export Line, Point, Envelope
 
 # methods
-export interp, splitat,upper_env!, getx, gety, gets, create_envelope, getr
+export interp, splitat,upper_env!, getx, gety, gets, splitLine, getr
 
 import Base.size, 
        Base.getindex, 

@@ -136,12 +136,12 @@ end
     end
 end
 
-@testset "create_envelope" begin
+@testset "splitLine" begin
     @testset "test 1: simple" begin
         x = [1,2,3,1.5,2.1,2.9]
         y = [1,1.5,1.7,1.2,1.8,2.1]
         L1 = Line(x,y)
-        e = create_envelope(L1)
+        e = splitLine(L1)
         @test isa(e,Envelope)
         @test length(getx(e))==1
         @test length(gety(e))==1
@@ -157,7 +157,7 @@ end
         x = [1,2,3,4,5.0,0,2,3,4,5]
         y = [2,1,2,1,2.0,1,2,1,2,1]
         L = Line(x,y)
-        e = create_envelope(L)
+        e = splitLine(L)
         @test isa(e,Envelope)
         @test length(getx(e))==1
         @test length(gety(e))==1
@@ -183,7 +183,7 @@ end
         x4 = collect(linspace(1,8,25))
         X = [x1...,x2...,x3...,x4...]
         L = Line([x1...,x2...,x3...,x4...],vcat(f1(x1),f2(x2),f3(x3),f4(x4)))
-        en = create_envelope(L)
+        en = splitLine(L)
  
         @test isa(en,Envelope)
         @test length(getx(en))==1
@@ -194,7 +194,7 @@ end
 
         upper_env!(en)
         @test issorted(getx(en))
-        @test gets(en) == [Point(2.0,1.0),Point(4.0,2.0),Point(6.0,4.0)]
+        @test gets(en) == [Point(2.0,1.0,i=1),Point(4.0,2.0,i=2),Point(6.0,4.0,i=3)]
         xx = unique(sort(vcat(X,vcat([gets(en)[i].x for i in 1:3]...))))
         @test getx(en) == xx
         yy = reshape(vcat([[f1(ix) f2(ix) f3(ix) f4(ix)] for ix in xx]...),length(xx),4)
@@ -214,7 +214,7 @@ end
         x4 = collect(linspace(1,8,25))
         X = [x1...,x2...,x3...,x4...]
         L = Line([x1...,x2...,x3...,x4...],vcat(f1(x1),f2(x2),f3(x3),f4(x4)))
-        en = create_envelope(L)
+        en = splitLine(L)
  
         @test isa(en,Envelope)
         @test length(getx(en))==1
@@ -225,7 +225,7 @@ end
 
         upper_env!(en)
         @test issorted(getx(en))
-        @test gets(en) == [Point(2.0,1.0),Point(4.0,2.0),Point(6.0,4.0)]
+        @test gets(en) == [Point(2.0,1.0,i=1),Point(4.0,2.0,i=2),Point(6.0,4.0,i=3)]
         xx = unique(sort(vcat(X,vcat([gets(en)[i].x for i in 1:3]...))))
         @test getx(en) == xx
         yy = reshape(vcat([[f1(ix) f2(ix) f3(ix) f4(ix)] for ix in xx]...),length(xx),4)
