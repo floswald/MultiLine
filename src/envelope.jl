@@ -71,47 +71,6 @@ getr(en::Envelope) = en.removed
 Base.getindex(en::Envelope,id::Int) = en.L[id]
 
 
-
-
-"Interpolate an `Envelope` on a unique grid. Return a matrix where each row is the interpolation of another `Line`"
-function interp(e::Envelope{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
-
-    # yy = reinterpret(SVector{length(L),T},vcat([l.y for l in L]'...),(L[1].n,))
-    # itp = interpolate((xx,),yy,Gridded(Linear()))
-    # y = itp[ix]
-    # y = convert(Matrix{T},y)
-    # info("ix = $ix")
-    y = zeros(T,length(e.L),length(ix))
-    for i in eachindex(e.L)
-        y[i,:] = interp(e.L[i],ix,extrap)
-    end
-    return y
-end 
-
-# function interp(x::StepRangeLen{T},y::Vector{T},ix::T) where {T<:Number}
-
-#     itp = Interpolations.interpolate(y,Bspline(Linear()))
-#     sitp = scale(itp,x)
-#     return sitp[ix]
-# end
-
-# started with this, because ranges are super efficient with interpolations, but too inflexible for this purpose.
-# mutable struct Line{T<:Number} <: AbstractArray{T<:Number,1}
-#     x::Union{Vector{T},StepRangeLen{T}}
-#     y::Vector{T}
-#     n::Int
-#     function Line(x::Union{Vector{T},StepRangeLen{T}},y::Vector{T}) where {T<:Number}
-#         this = new{T}()
-#         this.x = x
-#         this.n = length(x)
-#         this.y = y
-#         @assert length(y)==this.n
-#         return this
-#     end
-# end
-
-
-
 """
     splitLine(m::Line)
 
@@ -120,6 +79,7 @@ splits a `Line` object at wrong EGM solution points. Wrong solutions appear in k
 function splitLine(o::Line{T}) where T<:Number
 
     # 1) find all jump-backs in x-grid
+    println(o.x)
     ii = o.x[2:end].>o.x[1:end-1]  
     info("splitLine: ii = $(find(.!(ii)))")
     info("splitLine: x = $(o.x[find(.!(ii))])")
@@ -186,7 +146,7 @@ function upper_env!(e::Envelope{T}) where T<:Number
     # - interpolate(extrapolate) all Ls on xx
     # this returns a matrix (length(L),n)
     # i.e. each row is the interpolation 
-    yy = interp(e,xx)
+    yy = interp(e.L,xx)
 
     # find the top line at each point in xx
     val,lin_ind = findmax(yy,1)  # colwise max

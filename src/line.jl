@@ -50,6 +50,8 @@ function show(io::IO,L::Line{T}) where {T<:Number}
     print(io,"number of grid points: $(L.n)\n")
     print(io,"domain: $(L.dom)\n")
     print(io,"range: $(extrema(L.y))\n")
+    print(io,"x = $(L.x[1:(min(5,L.n))])\n")
+    print(io,"y = $(L.y[1:(min(5,L.n))])\n")
 end
 
 function reconfigure!(m::Line)
@@ -79,6 +81,11 @@ end
 
 # interpolating a line
 
+"""
+   interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
+
+Interpolate a `Line` on a vector of valuels `x`
+"""
 function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
     # whenever 
     xex = extrema(ix)
@@ -93,6 +100,13 @@ function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
         itp = interpolate((l.x,),l.y,Gridded(Linear()))
     end
     return itp[ix]
+end 
+function interp(e::Array{Line{T}},ix::Vector{T};extrap::Bool=true) where {T<:Number}
+    y = zeros(T,length(e),length(ix))
+    for i in eachindex(e)
+        y[i,:] = interp(e[i],ix,extrap)
+    end
+    return y
 end 
 
 # appending, prepending , deleting and splitting at
