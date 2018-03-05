@@ -5,8 +5,6 @@ module MultiLine
 using Interpolations
 using Roots
 using Plots
-# plotlyjs()
-pyplot()
 
 # Types
 export Line, Point, Envelope
