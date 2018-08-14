@@ -1,5 +1,27 @@
 
-@recipe function f(x::Envelope; removed=false)
+@recipe function f(l::Line;numerate=false)
+    # defaults
+    grid --> true
+    xticks := true
+    legend := false
+    @series begin
+        linetype := :path 
+        linecolor := :black
+        linewidth := 1
+        markershape := :circle
+        markerstrokecolor := :black
+        markercolor := :white
+        markersize := 2
+        if numerate
+            series_annotations := ["$i" for i in 1:length(l.x)]
+        end
+        (l.x,l.y)
+    end
+end
+
+
+
+@recipe function f(x::Envelope; removed=false,numerate=false)
 
     # defaults
     grid --> true
@@ -18,6 +40,9 @@
                 markerstrokecolor := :black
                 markercolor := :white
                 markersize := 2
+                if numerate
+                    series_annotations := ["$i" for i in 1:length(l.x)]
+                end
                 (l.x,l.y)
             end
         end
@@ -34,6 +59,9 @@
             # markeralpha := 0.5
             markerstrokecolor := :black
             markersize := 3
+            if numerate
+                series_annotations := ["$i" for i in 1:length(getx(x))]
+            end
             (getx(x),gety(x))
         end
         if removed
@@ -172,6 +200,16 @@ function tplot4()
 
     p2 = plot(e,removed=true)
 
+    plot(p1,p2)
+end
+
+function splitf()
+    x = [1,2,3,1.5,2.1,2.9]
+    y = [1,1.5,1.7,1.2,1.8,2.1]
+    L = Line(x,y)
+    p1 = plot(L,title="original",numerate=true)
+    e = splitLine(L)
+    p2 = plot(e,title="split Line",numerate=true)
     plot(p1,p2)
 end
 

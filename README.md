@@ -24,3 +24,7 @@ This is a component package for the DCEGM algorithm.
 ![case3c](f3c.png)
 #### case 3
 ![case4](f4.png)
+
+#### splitting wrong EGM lines
+![split](split.png)
+
