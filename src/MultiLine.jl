@@ -5,6 +5,7 @@ module MultiLine
 using Interpolations
 using Roots
 using Plots
+gr()
 
 # Types
 export Line, Point, Envelope
