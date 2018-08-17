@@ -1,19 +1,21 @@
 
-@recipe function f(l::Line;numerate=false)
+@recipe function f(l::Line;numerate=false,m=false)
     # defaults
     grid --> true
     xticks := true
     legend := false
     @series begin
-        linetype := :path 
-        linecolor := :black
-        linewidth := 1
-        markershape := :circle
-        markerstrokecolor := :black
-        markercolor := :white
-        markersize := 2
-        if numerate
-            series_annotations := ["$i" for i in 1:length(l.x)]
+        linetype --> :path 
+        linecolor --> :black
+        linewidth --> 1
+        if m
+            markershape --> :circle
+            markerstrokecolor --> :black
+            markercolor --> :white
+            markersize --> 2
+            if numerate
+                series_annotations := ["$i" for i in 1:length(l.x)]
+            end
         end
         (l.x,l.y)
     end
@@ -21,7 +23,7 @@ end
 
 
 
-@recipe function f(x::Envelope; removed=false,numerate=false)
+@recipe function f(x::Envelope; removed=false,numerate=false,m=false)
 
     # defaults
     grid --> true
@@ -36,12 +38,14 @@ end
                 linetype := :line 
                 linecolor := :black
                 linewidth := 1
-                markershape := :circle
-                markerstrokecolor := :black
-                markercolor := :white
-                markersize := 2
-                if numerate
-                    series_annotations := ["$i" for i in 1:length(l.x)]
+                if m
+                    markershape := :circle
+                    markerstrokecolor := :black
+                    markercolor := :white
+                    markersize := 2
+                    if numerate
+                        series_annotations := ["$i" for i in 1:length(l.x)]
+                    end
                 end
                 (l.x,l.y)
             end
@@ -54,13 +58,15 @@ end
             linetype := :line 
             linecolor --> :red
             linewidth --> 4
-            markershape := :circle
-            markercolor := :white
-            # markeralpha := 0.5
-            markerstrokecolor := :black
-            markersize := 3
-            if numerate
-                series_annotations := ["$i" for i in 1:length(getx(x))]
+            if m
+                markershape := :circle
+                markercolor := :white
+                # markeralpha := 0.5
+                markerstrokecolor := :black
+                markersize := 3
+                if numerate
+                    series_annotations := ["$i" for i in 1:length(getx(x))]
+                end
             end
             (getx(x),gety(x))
         end

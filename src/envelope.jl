@@ -20,6 +20,7 @@ mutable struct Envelope{T<:Number}
     env_set :: Bool
     isects :: Vector{Point{T}}
     removed :: Vector{Vector{Point{T}}}
+    vbound :: T
     function Envelope(x::T) where {T<:Number}
         this = new{T}()
         this.L = Line{T}[]
@@ -27,35 +28,40 @@ mutable struct Envelope{T<:Number}
         this.env_set = false
         this.isects = Point{T}[]
         this.removed = Vector{Point{T}}[Point{T}[] ]
+        this.vbound = zero(T)
         return this
     end
     function Envelope(e::Line{T}) where {T<:Number}
         this = new{T}()
         this.L = Line{T}[]
-        this.env = e 
+        this.env = deepcopy(e)
         this.env_set = true
         this.isects = Point{T}[]
         this.removed = Vector{Point{T}}[Point{T}[] ]
+        this.vbound = zero(T)
         return this
     end
     function Envelope(l::Vector{Line{T}}) where {T<:Number}
         this = new{T}()
-        this.L = l
+        this.L = deepcopy(l)
         this.env = Line([typemin(T)],[typemin(T)])
         this.env_set = false
         this.isects = Point{T}[]
         this.removed = Vector{Point{T}}[Point{T}[] ]
+        this.vbound = zero(T)
         return this
     end
 end
 function show(io::IO,en::Envelope{T}) where {T<:Number}
     print(io,"$T Envelope\n")
+    print(io,"env Line set?: $(en.env_set) \n")
     print(io,"num of `Line`s: $(length(en.L))\n")
     print(io,"num of intersections: $(length(en.isects))\n")
     print(io,"num of pts removed: $(sum(length(i) for i in en.removed))\n")
 end
 size(e::Envelope) = size(e.L)
 eltype(e::Envelope) = eltype(e.L) 
+bound(e::Envelope) = e.vbound
 getx(en::Envelope) = en.env.x
 gety(en::Envelope) = en.env.y
 gets(en::Envelope) = en.isects
@@ -79,7 +85,7 @@ splits a `Line` object at wrong EGM solution points. Wrong solutions appear in k
 function splitLine(o::Line{T}) where T<:Number
 
     # 1) find all jump-backs in x-grid
-    println(o.x)
+    # println(o.x)
     ii = o.x[2:end].>o.x[1:end-1]  
     info("splitLine: ii = $(find(.!(ii)))")
     info("splitLine: x = $(o.x[find(.!(ii))])")

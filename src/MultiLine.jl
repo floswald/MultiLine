@@ -11,7 +11,7 @@ gr()
 export Line, Point, Envelope
 
 # methods
-export interp, splitat,upper_env!, getx, gety, gets, splitLine, getr
+export interp, splitat,upper_env!, getx, gety, gets, splitLine, getr, bound
 
 import Base.size, 
        Base.getindex, 

@@ -15,6 +15,7 @@
         @test length(getr(en)[1])==0
         @test en.env_set
         @test eltype(getr(en)[1])==Point{Float64}
+        @test en.vbound == 0.0
 
         en = Envelope([L1,L1])
         @test isa(en,Envelope)

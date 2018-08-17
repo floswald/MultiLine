@@ -50,8 +50,14 @@ function show(io::IO,L::Line{T}) where {T<:Number}
     print(io,"number of grid points: $(L.n)\n")
     print(io,"domain: $(L.dom)\n")
     print(io,"range: $(extrema(L.y))\n")
-    print(io,"x = $(L.x[1:(min(5,L.n))])\n")
-    print(io,"y = $(L.y[1:(min(5,L.n))])\n")
+    if L.n>5
+        print(io,"first 5 points:\n")
+        print(io,"x = $(L.x[1:5])...\n")
+        print(io,"y = $(L.y[1:5])...\n")
+    else
+        print(io,"x = $(L.x)\n")
+        print(io,"y = $(L.y)\n")
+    end
 end
 
 function reconfigure!(m::Line)
@@ -86,7 +92,7 @@ end
 
 Interpolate a `Line` on a vector of valuels `x`
 """
-function interp(l::Line{T},ix::Vector{T},extrap::Bool=true) where {T<:Number}
+function interp(l::Line{T},ix::Vector{T},extrap::Bool=false) where {T<:Number}
     # whenever 
     xex = extrema(ix)
     # @debug(logger,"interpolating $ix ")
